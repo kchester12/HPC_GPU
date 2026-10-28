@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fairshare Tuning: LSF, Slurm, Grid Engine</title>
+<meta name="description" content="How LSF, Slurm, and Grid Engine compute fairshare priority, what to tune when job delays creep up, and how to turn observability into safe tuning.">
+<style>
+:root{--bg:#07111f;--panel:#0e1b2d;--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--red:#ff6b7a;--line:#24425e;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 26px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 26px;padding:24px 22px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--cyan)}
+section.part.lsf::before{background:#7aa7ff}section.part.slurm::before{background:var(--green)}section.part.sge::before{background:var(--amber)}
+h2{margin:0 0 6px;font-size:24px;line-height:1.3}
+.lede{margin:0 0 14px;color:var(--muted)}
+h3{margin:24px 0 8px;font-size:18px;color:#cfe6ff}
+h4{margin:18px 0 6px;font-size:15px;color:var(--cyan);letter-spacing:.02em}
+p{margin:8px 0}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:4px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff;white-space:nowrap}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;color:#bfeaff;overflow:auto;font:14px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}
+td{background:#0a1728}
+.callout{margin:16px 0 4px;padding:14px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+.callout b{color:var(--cyan)}
+.callout.warn{border-left-color:var(--amber);background:#201a0d;color:#ffe2a6}.callout.warn b{color:var(--amber)}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.box{background:#0a1728;border:1px solid #25425f;border-radius:13px;padding:14px 16px}
+.box h4{margin-top:0}
+.verdict{font-weight:700}
+.good{color:var(--green)}.mid{color:var(--amber)}.weak{color:var(--red)}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}.split{grid-template-columns:1fr}section.part{padding:20px 16px}code{white-space:normal}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,.box,.callout{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4;color:#111}.back{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Fairshare and Scheduler Tuning: LSF, Slurm, and Grid Engine</h1>
+<p class="sub">How each scheduler computes priority, what to tune when job delays start creeping up, and how to turn observability into safe tuning.</p>
+</div></header>
+
+<main><div class="wrap">
+
+<nav class="toc"><strong>Contents</strong><ol>
+<li><a href="#lsf">LSF: fairshare dynamic priority</a></li>
+<li><a href="#slurm">Slurm: multifactor priority</a></li>
+<li><a href="#sge">Grid Engine: tickets and urgency</a></li>
+<li><a href="#compare">All three side by side</a></li>
+<li><a href="#short">Which handles high-rate short jobs best?</a></li>
+<li><a href="#practice">From observability to tuning</a></li>
+</ol></nav>
+
+<!-- ============================ LSF ============================ -->
+<section class="part lsf" id="lsf">
+<h2>1. LSF: fairshare dynamic priority</h2>
+<p class="lede">LSF calculates a dynamic priority for each user or group at each level of the share tree. The scheduler dispatches from the highest-priority node first.</p>
+
+<pre>                              number_shares
+dynamic_priority = ─────────────────────────────────────────────────
+                     cpu_time            × CPU_TIME_FACTOR
+                   + run_time            × RUN_TIME_FACTOR
+                   + (1 + job_slots)     × RUN_JOB_FACTOR
+                   + committed_run_time  × COMMITTED_RUN_TIME_FACTOR
+                   + hist_run_time       × HIST_RUN_TIME_FACTOR   (if ENABLE_HIST_RUN_TIME=Y)
+                   + fairshare_adj       × FAIRSHARE_ADJUSTMENT_FACTOR</pre>
+<p>Newer releases add GPU terms, such as <code>GPU_RUN_TIME_FACTOR</code>, to the denominator.</p>
+
+<h3>The core idea</h3>
+<ul>
+<li><b>Numerator:</b> the shares you were given. This is your entitlement.</li>
+<li><b>Denominator:</b> what you have consumed recently. This is your usage.</li>
+<li><b>Result:</b> more usage means lower priority; more shares means higher priority.</li>
+</ul>
+
+<h3>What each term means</h3>
+<ul>
+<li><code>number_shares</code>: shares assigned in <code>USER_SHARES</code> or <code>FAIRSHARE</code> in <code>lsb.users</code> or <code>lsb.queues</code>.</li>
+<li><code>cpu_time</code>: cumulative CPU time, decayed over time.</li>
+<li><code>run_time</code>: wall-clock time of running jobs, decayed over time.</li>
+<li><code>job_slots</code>: slots the user is currently using. The "+1" keeps the denominator from being zero.</li>
+<li><code>committed_run_time</code>: the run limit committed by running jobs. This penalizes users who reserve long runtimes up front.</li>
+<li><code>fairshare_adj</code>: a value from a custom plugin (<code>libfairshareadjust</code>).</li>
+</ul>
+<p><b>Decay with <code>HIST_HOURS</code>:</b> <code>HIST_HOURS</code> (default 5) controls how fast past usage fades. After <code>HIST_HOURS</code>, one hour of usage counts as only 0.1 hours. Usage decays exponentially, so a user is gradually forgiven for past use.</p>
+<p><b>Default factors:</b> <code>CPU_TIME_FACTOR=0.7</code>, <code>RUN_TIME_FACTOR=0.7</code>, <code>RUN_JOB_FACTOR=3.0</code>, <code>COMMITTED_RUN_TIME_FACTOR=0</code>.</p>
+
+<h3>"Delay is creeping": what to tweak</h3>
+<p>There are two ways to read that symptom.</p>
+<div class="split">
+<div class="box">
+<h4>A. Jobs wait longer and longer (priority starvation)</h4>
+<p>This is a fairshare-math problem: the denominator keeps growing.</p>
+<ul>
+<li><b>Lower <code>HIST_HOURS</code>.</b> Past usage decays faster, so heavy users regain priority sooner.</li>
+<li><b>Lower <code>RUN_JOB_FACTOR</code>.</b> Reduces the penalty for many concurrent jobs. It dominates for high-throughput users with many small jobs.</li>
+<li><b>Lower <code>RUN_TIME_FACTOR</code> or <code>CPU_TIME_FACTOR</code></b> if long jobs are dragging priority down.</li>
+<li><b>Set <code>COMMITTED_RUN_TIME_FACTOR</code> to 0</b> (or near it) if users set big <code>-W</code> limits and are punished for them up front.</li>
+<li><b>Rebalance <code>number_shares</code>.</b> This raises the numerator directly.</li>
+</ul>
+<p><b>Diagnose:</b> <code>bhpart -r</code> or <code>bqueues -r -l</code> show shares, priority, and usage per tree node, so you can see which term is driving priority down.</p>
+</div>
+<div class="box">
+<h4>B. The scheduler itself is slow (dispatch latency, mbatchd load)</h4>
+<p>Fairshare adds scheduling cost, so tune it as overhead:</p>
+<ul>
+<li><b>Remove or simplify the <code>fairshare_adj</code> plugin.</b> It runs every scheduling session, so a slow plugin hurts every cycle.</li>
+<li><b>Flatten deep share trees</b>, or avoid <code>[default, N]</code> in large groups. That entry creates a share node per user, so thousands of users means thousands of nodes recalculated each cycle.</li>
+<li><b>Disable <code>ENABLE_HIST_RUN_TIME</code></b> if you don't need it.</li>
+</ul>
+<p><b>Non-fairshare knobs in <code>lsb.params</code>:</b></p>
+<ul>
+<li><code>JOB_SCHEDULING_INTERVAL</code>, <code>MBD_SLEEP_TIME</code>: scheduling cadence.</li>
+<li><code>MAX_CONCURRENT_QUERY</code>, <code>MBD_QUERY_CPUS</code>, <code>MBD_REFRESH_TIME</code>: keep heavy <code>bjobs</code> polling off the submit path.</li>
+<li><code>NEWJOB_REFRESH=Y</code>: new submissions reach the scheduler faster.</li>
+<li><code>LSB_MAX_PACK_JOBS</code> (<code>bsub -pack</code>) and job arrays: cut per-job submission overhead.</li>
+<li><code>CONDENSE_PENDING_REASONS</code>: less pending-reason bookkeeping.</li>
+</ul>
+</div>
+</div>
+<h4>Diagnosing scheduler latency</h4>
+<ul>
+<li><code>badmin perfmon start</code> / <code>view</code>: submission rate, scheduling time, and query load.</li>
+<li><code>badmin diagnose</code>: more scheduler detail.</li>
+<li><code>badmin schddebug</code> / <code>LSB_TIME_MBSCHD</code>: time per scheduling phase, which tells you whether fairshare is actually the bottleneck.</li>
+</ul>
+<div class="callout"><b>In short:</b> first decide whether it's priority starvation or scheduler latency. For starvation, tune <code>HIST_HOURS</code> and <code>RUN_JOB_FACTOR</code>, since those usually dominate. For latency, look at share-tree size, the adjustment plugin, and query load on mbatchd, and confirm with perfmon data.</div>
+</section>
+
+<!-- ============================ SLURM ============================ -->
+<section class="part slurm" id="slurm">
+<h2>2. Slurm: multifactor priority</h2>
+<p class="lede">Slurm uses a different model. Fairshare is one weighted term inside a bigger multifactor sum, not the whole formula as in LSF.</p>
+<pre>Job_priority = site_factor
+             + PriorityWeightAge       × age_factor
+             + PriorityWeightAssoc     × assoc_factor
+             + PriorityWeightFairshare × fairshare_factor
+             + PriorityWeightJobSize   × job_size_factor
+             + PriorityWeightPartition × partition_factor
+             + PriorityWeightQOS       × qos_factor
+             + Σ (PriorityWeightTRES_i × TRES_factor_i)
+             − nice_factor</pre>
+<p>Every factor is normalized to 0.0–1.0. The weights (integers in <code>slurm.conf</code>) decide how much each factor matters. The key point: <b>fairshare only matters as much as <code>PriorityWeightFairshare</code> allows relative to the other weights.</b></p>
+
+<h3>The fairshare factor itself</h3>
+<div class="split">
+<div class="box">
+<h4>Classic algorithm</h4>
+<pre>F = 2^( −U_effective / S_normalized / PriorityDampeningFactor )</pre>
+<ul>
+<li><b>S:</b> your shares ÷ total shares at that level, multiplied down the tree.</li>
+<li><b>U:</b> your decayed usage ÷ total usage.</li>
+<li>When U = S (you used exactly your share), F = 0.5. Unused share pushes F toward 1; overuse pushes it toward 0.</li>
+<li>Effective usage also pulls in the parent account's usage:</li>
+</ul>
+<pre>U_eff = U_self + (U_parent_eff − U_self) × (S_self / S_siblings)</pre>
+</div>
+<div class="box">
+<h4>Fair Tree (default since 19.05)</h4>
+<ul>
+<li>At each level of the account tree it computes <code>LevelFS = S / U</code>, where S and U are your fraction of shares and usage among your siblings.</li>
+<li>It walks the tree depth-first, sorting siblings by LevelFS. Accounts that deserve more priority are visited first, and all their users rank above the next account's users.</li>
+<li>Final factor: <code>fairshare_factor = rank / total_users</code>.</li>
+<li><b>Practical effect:</b> one heavy user drags their whole account down, but cannot hurt users in other accounts.</li>
+</ul>
+</div>
+</div>
+
+<h3>Usage decay</h3>
+<pre>usage(t) = usage(0) × 0.5^( t / PriorityDecayHalfLife )</pre>
+<ul>
+<li><code>PriorityDecayHalfLife</code> defaults to 7 days. It is the Slurm equivalent of LSF's <code>HIST_HOURS</code>.</li>
+<li>Usage is charged in TRES-billing units, weighted by <code>TRESBillingWeights</code> per partition.</li>
+<li><code>PriorityCalcPeriod</code> (default 5 minutes) sets how often priorities are recalculated.</li>
+</ul>
+
+<h3>"Delay is creeping": what to tweak</h3>
+<div class="split">
+<div class="box">
+<h4>A. Some users' jobs keep sitting longer (priority problem)</h4>
+<ul>
+<li><b>Lower <code>PriorityDecayHalfLife</code>.</b> Past usage is forgiven faster. Seven days is long for bursty research groups.</li>
+<li><b>Rebalance weights.</b> Raise <code>PriorityWeightAge</code> and set <code>PriorityMaxAge</code> so long-waiting jobs eventually rise regardless of fairshare, or lower <code>PriorityWeightFairshare</code> if it dominates.</li>
+<li><b>Adjust shares</b> with <code>sacctmgr modify account/user ... set fairshare=N</code>.</li>
+<li><b>Check <code>TRESBillingWeights</code>.</b> GPU or memory-heavy jobs may be charged more than you intend.</li>
+<li><b>Last resort:</b> <code>PriorityUsageResetPeriod</code> resets usage periodically, or <code>sacctmgr modify user ... set rawusage=0</code> resets one user.</li>
+</ul>
+<p><b>Diagnose:</b> <code>sprio -l</code> shows which factor dominates a pending job; <code>sshare -l -a</code> shows shares, usage, and the fairshare factor across the tree.</p>
+</div>
+<div class="box">
+<h4>B. The controller is slow (scheduler or RPC latency)</h4>
+<p>In <code>SchedulerParameters</code>:</p>
+<ul>
+<li><code>default_queue_depth</code>, <code>sched_interval</code>, <code>sched_min_interval</code>: how much of the queue the main scheduler examines each pass, and how often.</li>
+<li><code>bf_interval</code>, <code>bf_max_job_test</code>, <code>bf_max_job_user</code>, <code>bf_window</code>, <code>bf_resolution</code>, <code>bf_continue</code>, <code>bf_yield_interval</code>: backfill is usually the most expensive pass. A large <code>bf_window</code> with a small <code>bf_resolution</code> is a classic slowdown.</li>
+<li><code>max_rpc_cnt</code>: the scheduler defers when the RPC backlog is high, protecting submit responsiveness.</li>
+<li><code>defer</code>, <code>batch_sched_delay</code>: stop scheduling on every submit, which helps high submit rates.</li>
+</ul>
+<p><b>Other areas:</b></p>
+<ul>
+<li>Raise <code>PriorityCalcPeriod</code> if fairshare recalculation is costly on a large association tree.</li>
+<li><b>Check slurmdbd and MariaDB.</b> A slow accounting backend, missing purge settings (<code>PurgeJobAfter</code> and similar), or a huge job table can back up slurmctld.</li>
+<li><b>Reduce user polling.</b> Heavy <code>squeue</code> loops from scripts or workflow engines hammer the controller. Use job arrays, and <code>rl_*</code> rate limiting on newer versions.</li>
+</ul>
+<p><b>Diagnose:</b> <code>sdiag</code> shows main and backfill cycle times, queue depth tested, RPC counts by type and user, and agent queue size. It is the counterpart of LSF's <code>badmin perfmon</code>.</p>
+</div>
+</div>
+<div class="callout"><b>In short:</b> in Slurm, fairshare is one weighted factor, so run <code>sprio</code> first to see whether fairshare is actually what's holding jobs back. Then tune <code>PriorityDecayHalfLife</code> and the weight balance, especially age versus fairshare. If it's controller latency instead, use <code>sdiag</code> to see whether backfill cycle time or RPC load is the problem, tune <code>bf_*</code> and <code>max_rpc_cnt</code>, and check slurmdbd health.</div>
+<p><b>LSF vs Slurm in one line:</b> LSF computes priority as shares divided by weighted usage at each tree level. Slurm turns shares and usage into a normalized 0–1 factor and adds it to other weighted factors.</p>
+</section>
+
+<!-- ============================ GRID ENGINE ============================ -->
+<section class="part sge" id="sge">
+<h2>3. Grid Engine: tickets and urgency</h2>
+<p class="lede">Grid Engine (SGE, then Univa, now Altair) is the most layered of the three. Fairshare lives inside a ticket system, and tickets are only one of three terms in the final priority.</p>
+<pre>prio = weight_priority × npprior
+     + weight_urgency  × nurg
+     + weight_ticket   × ntckts</pre>
+<p>Weights are set with <code>qconf -msconf</code>. Defaults: <code>weight_priority=1.0</code>, <code>weight_urgency=0.1</code>, <code>weight_ticket=0.01</code>.</p>
+<div class="table-wrap"><table>
+<tr><th>Term</th><th>What it is</th></tr>
+<tr><td><code>npprior</code></td><td>Normalized POSIX priority from <code>qsub -p</code> (−1023 to 1024, mapped to 0–1)</td></tr>
+<tr><td><code>nurg</code></td><td>Normalized urgency</td></tr>
+<tr><td><code>ntckts</code></td><td>Normalized ticket count. This is where fairshare lives.</td></tr>
+</table></div>
+
+<h3>Urgency</h3>
+<pre>urgency = rrcontr + wtcontr + dlcontr</pre>
+<ul>
+<li><code>rrcontr</code>: resource requests × the urgency value of each complex (<code>qconf -mc</code>), multiplied by slots.</li>
+<li><code>wtcontr</code>: <code>waiting_time × weight_waiting_time</code>. This is the age factor.</li>
+<li><code>dlcontr</code>: <code>weight_deadline / time_left_to_deadline</code>.</li>
+</ul>
+
+<h3>Tickets: the fairshare part</h3>
+<pre>tickets = share_tree_tickets + functional_tickets + override_tickets</pre>
+<p>Pool sizes are set by <code>weight_tickets_share</code>, <code>weight_tickets_functional</code>, and override tickets assigned directly. <code>policy_hierarchy</code> (default <code>OFS</code>) sets the order in which policies apply.</p>
+<div class="split">
+<div class="box">
+<h4>Share tree policy (usage-based, historical)</h4>
+<ul>
+<li><b>Long-term entitlement:</b> each node's share ÷ its siblings' total shares, multiplied down the tree. Same idea as Slurm's normalized shares.</li>
+<li><b>Actual usage:</b> <code>usage = cpu × w_cpu + mem × w_mem + io × w_io</code>, with weights from <code>usage_weight_list</code> (default: CPU only).</li>
+<li><b>Decay:</b> usage halves every <code>halftime</code> hours (default 168, i.e. 7 days), the counterpart of LSF's <code>HIST_HOURS</code> and Slurm's <code>PriorityDecayHalfLife</code>.</li>
+<li><b>Short-term entitlement:</b> long-term entitlement adjusted up or down by how far usage is below or above target. Underusers get more tickets; overusers get fewer.</li>
+<li><b><code>compensation_factor</code>:</b> caps that adjustment. With 5, an idle node can't get more than 5× its long-term share, so one returning user can't flood the cluster.</li>
+</ul>
+</div>
+<div class="box">
+<h4>Functional policy (current, no history)</h4>
+<ul>
+<li>Splits <code>weight_tickets_functional</code> by functional shares across user, project, department, and job.</li>
+<li>The split is controlled by <code>weight_user</code>, <code>weight_project</code>, <code>weight_department</code>, and <code>weight_job</code>.</li>
+<li>No memory of past usage; it only reflects what is running and pending now.</li>
+</ul>
+<h4>Override</h4>
+<p>Tickets given manually to a user, project, or job for a temporary boost.</p>
+<p class="lede" style="margin-top:12px">One way to frame it: share tree is "fair over the past week," functional is "fair right now," and override is "admin says so."</p>
+</div>
+</div>
+
+<h3>"Delay is creeping": what to tweak</h3>
+<div class="split">
+<div class="box">
+<h4>A. Users' or projects' jobs keep waiting longer (priority problem)</h4>
+<ul>
+<li><b>Lower <code>halftime</code>.</b> Past usage is forgiven faster.</li>
+<li><b>Lower <code>compensation_factor</code></b> if one returning heavy user swings priority too hard.</li>
+<li><b>Shift ticket pools.</b> Raise <code>weight_tickets_functional</code> relative to <code>weight_tickets_share</code> for less history-driven behavior.</li>
+<li><b>Raise <code>weight_waiting_time</code> or <code>weight_urgency</code></b> so aging jobs eventually win.</li>
+<li><b>Watch <code>weight_ticket</code>.</b> It's tiny by default (0.01). If you've raised it, tickets may now drown out everything else.</li>
+<li><b>Adjust node shares</b> with <code>qconf -mstree</code>.</li>
+</ul>
+<p><b>Diagnose:</b> <code>qstat -pri</code> (priority breakdown), <code>qstat -urg</code> (urgency), <code>qstat -ext</code> (tickets), <code>sge_share_mon</code> (share tree usage vs. entitlement, live).</p>
+</div>
+<div class="box">
+<h4>B. qmaster or scheduler is slow (latency problem)</h4>
+<ul>
+<li><code>report_pjob_tickets=false</code>: computing tickets for every pending job is expensive with large queues. A classic fix.</li>
+<li><code>max_functional_jobs_to_schedule</code>: limits how many pending jobs get functional tickets each pass.</li>
+<li><code>max_pending_tasks_per_job</code>: keeps large array jobs from blowing up scheduling work.</li>
+<li><code>reprioritize_interval=0</code>: disables dynamic renicing of running jobs, cutting execd/qmaster chatter.</li>
+<li><code>schedule_interval</code>, <code>flush_submit_sec</code>, <code>flush_finish_sec</code>: flush values set too low make the scheduler run on every submit.</li>
+<li><code>max_reservation</code>: resource reservation (<code>-R y</code>) is expensive. Keep it small.</li>
+<li><code>params PROFILE=1</code> (and <code>MONITOR=1</code>): logs time per scheduling phase, showing whether ticket calculation is the bottleneck.</li>
+</ul>
+<p><b>qmaster side:</b> set worker, listener, and (Univa/Altair) reader threads so <code>qstat</code> floods stay off the main path. Classic spooling, or BDB on slow or NFS storage, is a common hidden cause of submit latency. <code>qping -info &lt;qmaster&gt; &lt;port&gt; qmaster 1</code> shows thread status and message backlog.</p>
+</div>
+</div>
+<div class="callout"><b>In short:</b> Grid Engine priority is POSIX priority plus urgency plus tickets, and fairshare is the share-tree portion of the tickets. For starvation, use <code>qstat -pri</code> to see which term dominates, then tune <code>halftime</code>, <code>compensation_factor</code>, and the share/functional ticket balance. For latency, the big wins are <code>report_pjob_tickets=false</code>, limiting functional ticket calculation, and fixing flush intervals and spooling.</div>
+</section>
+
+<!-- ============================ COMPARE ============================ -->
+<section class="part" id="compare">
+<h2>4. All three side by side</h2>
+<div class="table-wrap"><table>
+<tr><th></th><th>LSF</th><th>Slurm</th><th>Grid Engine</th></tr>
+<tr><th>Fairshare form</th><td>shares ÷ weighted usage</td><td>2^(−U/S) or Fair Tree rank</td><td>share tree tickets</td></tr>
+<tr><th>Usage decay knob</th><td><code>HIST_HOURS</code></td><td><code>PriorityDecayHalfLife</code></td><td><code>halftime</code></td></tr>
+<tr><th>Age / wait factor</th><td>not in the fairshare formula</td><td><code>PriorityWeightAge</code></td><td><code>weight_waiting_time</code></td></tr>
+<tr><th>Priority diagnostic</th><td><code>bhpart -r</code></td><td><code>sprio</code> / <code>sshare</code></td><td><code>qstat -pri</code> / <code>sge_share_mon</code></td></tr>
+<tr><th>Performance diagnostic</th><td><code>badmin perfmon</code></td><td><code>sdiag</code></td><td><code>PROFILE=1</code>, <code>qping</code></td></tr>
+</table></div>
+</section>
+
+<!-- ============================ SHORT JOBS ============================ -->
+<section class="part" id="short">
+<h2>5. Which handles high-rate short jobs best?</h2>
+<p class="lede">For high-rate short jobs, LSF's formula is the best balanced of the three. The reason is more interesting than "LSF is fastest," and there are caveats.</p>
+
+<h3>Why short jobs are a hard case</h3>
+<p>Each short job is too brief to build up much CPU or run time, so a formula based purely on historical usage barely notices a user who floods the queue with 100,000 thirty-second jobs. A good formula for this workload needs two kinds of terms:</p>
+<ol>
+<li><b>An instantaneous term</b> that reacts within the current scheduling cycle to how much someone is running right now.</li>
+<li><b>A decayed historical term</b> so usage still counts once the burst ends.</li>
+</ol>
+
+<h3>How each one handles it</h3>
+<div class="box" style="margin:10px 0">
+<h4 class="good">LSF: best balanced for this workload</h4>
+<ul>
+<li>The denominator already mixes both kinds: <b>instantaneous</b> <code>(1 + job_slots) × RUN_JOB_FACTOR</code>, and <b>historical</b> <code>cpu_time</code> and <code>run_time</code>, decayed by <code>HIST_HOURS</code>.</li>
+<li><b>Fast reaction:</b> <code>job_slots</code> changes the moment jobs dispatch, so a user flooding short jobs loses priority within the same scheduling session.</li>
+<li><b>One knob for burstiness:</b> <code>RUN_JOB_FACTOR</code> versus <code>RUN_TIME_FACTOR</code> sets how much you care about concurrency versus duration.</li>
+<li><b>Built-in throughput tools:</b> job packs, chunk jobs, and arrays. Part of why EDA, heavy on short regression and characterization jobs, has traditionally been LSF territory.</li>
+</ul>
+</div>
+<div class="box" style="margin:10px 0">
+<h4 class="mid">Grid Engine: most expressive, most expensive to compute</h4>
+<ul>
+<li>It can reach the same balance: the <b>functional policy</b> is the "right now" term, the <b>share tree</b> is the historical term, and <code>compensation_factor</code> caps overcorrection, which LSF doesn't have. On paper, arguably the best design.</li>
+<li><b>The cost:</b> tickets are calculated per pending job, which becomes the bottleneck at high submit rates. That's why <code>report_pjob_tickets=false</code> and <code>max_functional_jobs_to_schedule</code> exist.</li>
+<li><b>The tradeoff:</b> scheduler throughput for policy richness.</li>
+</ul>
+</div>
+<div class="box" style="margin:10px 0">
+<h4 class="weak">Slurm: most principled and transparent, but lags on bursts</h4>
+<ul>
+<li><b>No instantaneous term:</b> the fairshare factor is purely decayed history, recalculated every <code>PriorityCalcPeriod</code> (default 5 minutes). Nothing like LSF's <code>job_slots</code>.</li>
+<li><b>Result:</b> a burst of short jobs can take over the queue before fairshare catches up.</li>
+<li><b>Strengths:</b> Fair Tree's account isolation is excellent, and normalized 0–1 factors make tuning predictable.</li>
+<li><b>How sites compensate:</b> QOS and association limits (<code>MaxJobs</code>, <code>MaxSubmitJobs</code>, <code>GrpTRES</code>). That works, but it's a separate mechanism, not a balanced formula.</li>
+<li><b>Per-job overhead:</b> controller and slurmdbd cost per job is higher; Slurm has a dedicated high-throughput tuning guide for this reason.</li>
+</ul>
+</div>
+
+<h3>Summary</h3>
+<div class="table-wrap"><table>
+<tr><th></th><th>Reacts to bursts instantly</th><th>Remembers history</th><th>Cost at high rate</th><th>Verdict for short jobs</th></tr>
+<tr><th>LSF</th><td>Yes (<code>RUN_JOB_FACTOR</code>)</td><td>Yes</td><td>Low</td><td class="verdict good">Best balanced</td></tr>
+<tr><th>Grid Engine</th><td>Yes (functional)</td><td>Yes (share tree)</td><td>High (per-job tickets)</td><td class="verdict mid">Richest, but costly</td></tr>
+<tr><th>Slurm</th><td>No (needs QOS limits)</td><td>Yes</td><td>Medium–high</td><td class="verdict weak">Cleanest math, laggy for bursts</td></tr>
+</table></div>
+<div class="callout"><b>In short:</b> LSF balances best because its denominator combines an instantaneous concurrency term, <code>RUN_JOB_FACTOR × slots</code>, with decayed historical usage. Fairshare corrects within a scheduling cycle and still remembers the burst afterward. Grid Engine can express the same thing with functional plus share-tree tickets, but ticket calculation gets expensive at high rates. Slurm's fairshare is purely historical, so for short bursts you lean on QOS limits instead.</div>
+<div class="callout warn"><b>Caveat:</b> a good formula doesn't fix scheduler throughput. If submission latency is the actual problem, job packs, arrays, and the latency knobs above matter more than the fairshare math.</div>
+</section>
+
+<!-- ============================ PRACTICE ============================ -->
+<section class="part" id="practice">
+<h2>6. From observability to tuning: do shops auto-tune fairshare?</h2>
+<p class="lede">Mostly no, at least not fully automatically. Most LSF shops run a human-in-the-loop process: dashboards and alerts flag a fairness problem, an admin proposes a change, it gets approved, and someone runs <code>badmin reconfig</code>. Closed-loop auto-tuning of <code>RUN_JOB_FACTOR</code> or <code>HIST_HOURS</code> is rare.</p>
+<p>The reason: fairshare is a policy that encodes agreements about who is entitled to what. It is not a performance metric. An auto-tuner needs an objective function, and "fair" is partly political. What shops do automate is usually share values fed from budgets or project allocations, plus guardrails.</p>
+<p>In practice, "semi-automatic" is a five-step pipeline.</p>
+
+<h3>Step 1. Turn observability into fairness SLOs</h3>
+<ul>
+<li><b>Entitlement error per group:</b> <code>actual_usage_fraction − entitled_share_fraction</code> over a rolling window (24 hours or 7 days).</li>
+<li><b>Pending time p50/p95</b> per group and queue. Raw averages hide starvation.</li>
+<li><b>Max pending age.</b> The direct starvation signal.</li>
+<li><b>Recovery time:</b> after a group's burst ends, how long until its priority returns to normal. This directly measures whether <code>HIST_HOURS</code> is right.</li>
+<li><b>Scheduler health:</b> mbschd cycle time, dispatch latency, and submit rate. These separate a fairness problem from a throughput problem.</li>
+</ul>
+
+<h3>Step 2. Collect the data</h3>
+<div class="table-wrap"><table>
+<tr><th>Source</th><th>Gives you</th></tr>
+<tr><td><code>bhpart -r</code>, <code>bqueues -r -l</code></td><td>Shares, dynamic priority, and usage per tree node</td></tr>
+<tr><td><code>bjobs -u all -p</code></td><td>Pending jobs and pending reasons</td></tr>
+<tr><td><code>lsb.acct</code> / <code>lsb.stream</code></td><td>Per-job history and real-time job events</td></tr>
+<tr><td><code>badmin perfmon</code></td><td>Submit rate, scheduling time, query load</td></tr>
+<tr><td>IBM RTM or LSF Explorer</td><td>Packaged versions of the above, if licensed</td></tr>
+</table></div>
+<p>A small exporter that scrapes these into Prometheus works well. If you already run Prometheus and Grafana for the cluster, this is mostly new exporters and panels, not a new stack.</p>
+
+<h3>Step 3. Map symptoms to parameters</h3>
+<p>This is the "model." In most shops it's a rules table, not machine learning:</p>
+<div class="table-wrap"><table>
+<tr><th>Symptom</th><th>Likely cause</th><th>Adjust</th></tr>
+<tr><td>High-concurrency groups dominate during bursts</td><td>Concurrency penalty too weak</td><td>Raise <code>RUN_JOB_FACTOR</code></td></tr>
+<tr><td>A group stays starved long after its burst ends</td><td>Usage forgiven too slowly</td><td>Lower <code>HIST_HOURS</code></td></tr>
+<tr><td>Long-runner groups always rank low</td><td>Run time weighted too heavily</td><td>Lower <code>RUN_TIME_FACTOR</code></td></tr>
+<tr><td>Usage diverges from entitlement over a week</td><td>Shares don't match reality</td><td>Rebalance <code>USER_SHARES</code></td></tr>
+<tr><td>Priority looks fine but dispatch is slow</td><td>Not a fairshare problem</td><td>Scheduler and mbatchd tuning</td></tr>
+</table></div>
+
+<h3>Step 4. Run a cheap what-if before changing anything</h3>
+<p>The dynamic priority formula is just arithmetic. Replay a day of <code>lsb.acct</code> data, recompute each group's priority with candidate factor values, and see how the ranking would have shifted. It's an approximation, since it ignores the feedback effect of the changed dispatch order, but it catches bad ideas before they reach production. IBM also offers an LSF simulator for full trace replay, if your license includes it.</p>
+
+<h3>Step 5. Make the change with guardrails</h3>
+<ul>
+<li><b>One parameter at a time, in bounded steps</b>, e.g. no more than ±25% change to <code>RUN_JOB_FACTOR</code> at once.</li>
+<li><b>Wait between changes</b>, at least one or two <code>HIST_HOURS</code> periods, or effects are still settling when you judge them.</li>
+<li><b>Track every change with a rollback.</b> Keep <code>lsb.params</code> and <code>lsb.users</code> in git, and log each <code>badmin reconfig</code> alongside dashboard annotations.</li>
+<li><b>A human approves.</b> The tool proposes; a person decides.</li>
+</ul>
+
+<h3>Where real automation does fit</h3>
+<p>LSF has a built-in hook: the <code>FAIRSHARE_ADJUSTMENT_FACTOR</code> plugin (<code>libfairshareadjust</code>). It adds a per-user term computed by your code every scheduling cycle. A common use is correcting for longer-term entitlement error than <code>HIST_HOURS</code> can see, such as giving a small boost to groups under their weekly entitlement. Keep it cheap and cached: it runs every cycle, and a slow plugin is exactly the scheduler latency problem from section 1.</p>
+<div class="callout"><b>In short:</b> define fairness SLOs (entitlement error, p95 pending time, recovery time after a burst) and export LSF data into Prometheus. Map each symptom to a specific factor. What-if test changes against accounting replay, and make them one at a time with a human approving. Automation belongs in share values or a lightweight fairshare-adjust plugin, not in rewriting the factors on the fly.</div>
+</section>
+
+</div></main>
+<footer>Defaults and parameter names vary by version. Check your scheduler's documentation before changing production settings.</footer>
+</body>
+</html>
