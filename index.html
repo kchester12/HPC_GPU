@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HPC Runbooks</title>
+<meta name="description" content="Practical HPC and Linux infrastructure runbooks: GPU/CUDA, schedulers, storage, and operations.">
+<style>
+:root{--bg:#07111f;--panel:#0e1b2d;--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--line:#2b4767;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:40px 20px 26px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:1100px;margin:auto}
+h1{margin:0;font-size:clamp(28px,5vw,44px);letter-spacing:-.03em}
+.sub{margin:8px 0 0;color:var(--muted);max-width:720px}
+.author{margin:14px 0 0;color:var(--muted);font-size:14px}
+.author a{color:var(--cyan);text-decoration:none}
+.author a:hover{text-decoration:underline}
+main{padding:28px 20px 60px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+#q{flex:1 1 260px;padding:11px 14px;border-radius:11px;border:1px solid #365b7b;background:#071321;color:var(--text);font-size:15px}
+#q:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px rgba(64,217,255,.15)}
+.tags{display:flex;gap:7px;flex-wrap:wrap}
+.tag{border:1px solid #31516f;background:#112842;color:var(--text);padding:7px 12px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700}
+.tag.on{background:var(--cyan);color:#03111b;border-color:var(--cyan)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.card{display:flex;flex-direction:column;padding:20px;border-radius:16px;border:1px solid #23415f;background:rgba(10,24,41,.88);box-shadow:var(--shadow);color:inherit;text-decoration:none;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--cyan)}
+.card:hover,.card:focus-visible{border-color:var(--cyan);transform:translateY(-2px);outline:none}
+.card h2{margin:0 0 6px;font-size:19px}
+.card p{margin:0;color:var(--muted);font-size:15px;flex:1}
+.meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:14px}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid #2a5678;color:#ccecff;background:#102943}
+.date{font-size:12px;color:var(--muted);margin-left:auto;align-self:center}
+.soon{opacity:.55;pointer-events:none}
+.soon::before{background:var(--amber)}
+.empty{color:var(--muted);padding:30px 0;text-align:center}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<h1>HPC Runbooks</h1>
+<p class="sub">Practical, field-tested workflows for Linux HPC and infrastructure operations: GPUs, schedulers, storage, and the incidents in between.</p>
+<p class="author">By Koushik Chaudhuri · <a href="https://www.linkedin.com/in/koushik-chaudhuri-06211a4">LinkedIn</a></p>
+</div></header>
+<main><div class="wrap">
+<div class="tools">
+<input id="q" type="search" placeholder="Search topics…" aria-label="Search topics">
+<div class="tags" id="tags"></div>
+</div>
+<div class="grid" id="grid"></div>
+<p class="empty" id="empty" hidden>No pages match that search.</p>
+</div></main>
+<footer>All examples use generic hostnames and illustrative output. Adapt commands to your site's policies.</footer>
+
+<script>
+/* =====================================================================
+   ADD A NEW PAGE HERE
+   Copy one { ... }, block, paste it below the last one, and edit it.
+   - file:  the exact filename you uploaded (case-sensitive)
+   - tags:  short labels; matching tags become filter buttons automatically
+   - date:  optional, shown on the card
+   - soon:  true shows a greyed "Coming soon" card with no link
+   ===================================================================== */
+const pages = [
+  {
+    title: "GPU & CUDA HPC Sysadmin Workflow",
+    file:  "gpu_cuda_hpc_runbook.html",
+    desc:  "Bottom-up troubleshooting for Linux GPU nodes: PCIe, driver, nvidia-smi, CUDA, scheduler isolation, performance, and hardware faults.",
+    tags:  ["GPU", "CUDA", "Slurm", "LSF"],
+    date:  "Oct 2026"
+  },
+  {
+    title: "Next topic (example)",
+    file:  "",
+    desc:  "Replace this card with your next runbook, or delete this block.",
+    tags:  ["Coming soon"],
+    soon:  true
+  },
+];
+/* ===================== nothing to edit below this line ===================== */
+
+const grid=document.getElementById('grid'),q=document.getElementById('q'),tagBox=document.getElementById('tags'),empty=document.getElementById('empty');
+let active=null;
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+[...new Set(pages.filter(p=>!p.soon).flatMap(p=>p.tags||[]))].forEach(t=>{
+  const b=document.createElement('button');b.type='button';b.className='tag';b.textContent=t;
+  b.onclick=()=>{active=active===t?null:t;[...tagBox.children].forEach(x=>x.classList.toggle('on',x.textContent===active));draw()};
+  tagBox.appendChild(b)});
+function draw(){
+  const term=q.value.trim().toLowerCase();
+  const list=pages.filter(p=>(!active||(p.tags||[]).includes(active))&&(!term||[p.title,p.desc,...(p.tags||[])].join(' ').toLowerCase().includes(term)));
+  grid.innerHTML=list.map(p=>{
+    const inner=`<h2>${esc(p.title)}</h2><p>${esc(p.desc)}</p><div class="meta">${(p.tags||[]).map(t=>`<span class="chip">${esc(t)}</span>`).join('')}${p.date?`<span class="date">${esc(p.date)}</span>`:''}</div>`;
+    return p.soon?`<div class="card soon">${inner}</div>`:`<a class="card" href="${esc(p.file)}">${inner}</a>`}).join('');
+  empty.hidden=list.length>0}
+q.addEventListener('input',draw);draw();
+</script>
+</body>
+</html>
