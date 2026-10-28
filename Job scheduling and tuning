@@ -1,0 +1,398 @@
+## LSF fairshare: dynamic priority and Slurm multifactor priority
+LSF fairshare: dynamic priority
+
+LSF calculates a dynamic priority for each user or group at each level of the share tree. The scheduler dispatches from the highest-priority node first.
+
+                              number_shares
+dynamic_priority = ─────────────────────────────────────────────────
+                     cpu_time            × CPU_TIME_FACTOR
+                   + run_time            × RUN_TIME_FACTOR
+                   + (1 + job_slots)     × RUN_JOB_FACTOR
+                   + committed_run_time  × COMMITTED_RUN_TIME_FACTOR
+                   + hist_run_time       × HIST_RUN_TIME_FACTOR   (if ENABLE_HIST_RUN_TIME=Y)
+                   + fairshare_adj       × FAIRSHARE_ADJUSTMENT_FACTOR
+
+Newer releases add GPU terms, such as GPU_RUN_TIME_FACTOR, to the denominator.
+
+The core idea is simple:
+
+Numerator: the shares you were given. This is your entitlement.
+Denominator: what you have consumed recently. This is your usage.
+Result: more usage means lower priority, and more shares means higher priority.
+
+What each term means:
+
+number_shares: the shares assigned in USER_SHARES or FAIRSHARE in lsb.users or lsb.queues.
+cpu_time: cumulative CPU time, decayed over time.
+run_time: wall-clock time of running jobs, decayed over time.
+job_slots: slots the user is currently using. The “+1” keeps the denominator from being zero.
+committed_run_time: the run limit committed by running jobs. This penalizes users who reserve long runtimes up front.
+fairshare_adj: a value from a custom plugin (libfairshareadjust).
+
+Decay with HIST_HOURS: HIST_HOURS (default 5) controls how fast past usage fades. After HIST_HOURS, one hour of usage counts as only 0.1 hours. Usage decays exponentially, so a user is gradually forgiven for past use.
+
+Default factors: CPU_TIME_FACTOR=0.7, RUN_TIME_FACTOR=0.7, RUN_JOB_FACTOR=3.0, COMMITTED_RUN_TIME_FACTOR=0.
+
+“Delay is creeping”: what to tweak
+
+There are two ways to read that symptom. 
+
+1. A user’s or group’s jobs wait longer and longer (priority starvation)
+
+This is a fairshare-math problem: the denominator keeps growing.
+
+Lower HIST_HOURS. Past usage decays faster, so heavy users regain priority sooner.
+Lower RUN_JOB_FACTOR. This reduces the penalty for running many concurrent jobs. It is the term that dominates for high-throughput users with many small jobs.
+Lower RUN_TIME_FACTOR or CPU_TIME_FACTOR. Use this if long jobs are what’s dragging priority down.
+Set COMMITTED_RUN_TIME_FACTOR to 0 (or near it). Use this if users set big -W limits and are punished for them up front.
+Rebalance number_shares. This raises the numerator directly.
+To check the cause, run bhpart -r or bqueues -r -l. They show shares, priority, and usage per tree node, so you can see which term is driving priority down.
+
+2. The scheduler itself is getting slow (dispatch latency or mbatchd load)
+
+Fairshare adds scheduling cost, so you can tune it as overhead:
+
+Remove or simplify the fairshare_adj plugin. It runs during every scheduling session, so a slow plugin hurts every cycle.
+Flatten deep share trees, or avoid [default, N] in large groups. That entry creates a separate share node per user, so thousands of users means thousands of nodes recalculated each cycle.
+Disable ENABLE_HIST_RUN_TIME if you don’t need it.
+
+Non-fairshare knobs in lsb.params:
+
+JOB_SCHEDULING_INTERVAL and MBD_SLEEP_TIME control scheduling cadence.
+MAX_CONCURRENT_QUERY, MBD_QUERY_CPUS, and MBD_REFRESH_TIME keep heavy bjobs polling away from the submit path.
+NEWJOB_REFRESH=Y lets new submissions reach the scheduler faster.
+LSB_MAX_PACK_JOBS (bsub -pack) and job arrays cut per-job submission overhead.
+CONDENSE_PENDING_REASONS reduces pending-reason bookkeeping.
+
+To check the cause:
+
+badmin perfmon start / view shows the submission rate, scheduling time, and query load.
+badmin diagnose gives more scheduler detail.
+badmin schddebug / LSB_TIME_MBSCHD shows how long each scheduling phase takes. This tells you whether fairshare is actually the bottleneck.
+
+** Check **whether it’s priority starvation or scheduler latency. For starvation,  tune HIST_HOURS and RUN_JOB_FACTOR, since those usually dominate. For latency,look at share-tree size, the adjustment plugin, and query load on mbatchd, using perfmon data to confirm.”
+
+What about Slurm ?
+
+Explaining Slurm's multifactor priority and fair-share formulas.
+
+Slurm uses a different model. Fairshare is one weighted term inside a bigger multifactor priority sum, not the whole formula as in LSF.
+
+Slurm multifactor priority
+Job_priority = site_factor
+             + PriorityWeightAge       × age_factor
+             + PriorityWeightAssoc     × assoc_factor
+             + PriorityWeightFairshare × fairshare_factor
+             + PriorityWeightJobSize   × job_size_factor
+             + PriorityWeightPartition × partition_factor
+             + PriorityWeightQOS       × qos_factor
+             + Σ (PriorityWeightTRES_i × TRES_factor_i)
+             − nice_factor
+
+Every factor is normalized to the range 0.0 to 1.0. The weights (integers in slurm.conf) decide how much each factor matters. So a common  point: *fairshare only matters as much as PriorityWeightFairshare allows relative to the other weights.*
+
+The fairshare factor itself
+
+Classic algorithm:
+
+F = 2^( −U_effective / S_normalized / PriorityDampeningFactor )
+S: your shares divided by the total shares at that level, multiplied down the tree.
+U: your decayed usage divided by total usage.
+When U = S (you used exactly your share), F = 0.5.
+Unused share pushes F toward 1, and overuse pushes F toward 0.
+Effective usage also pulls in the parent account’s usage:
+U_eff = U_self + (U_parent_eff − U_self) × (S_self / S_siblings)
+
+Fair Tree (default since 19.05):
+
+At each level of the account tree it computes LevelFS = S / U, where S and U are your fraction of the shares and usage among your siblings.
+It then walks the tree depth-first, sorting siblings by LevelFS. Accounts that deserve more priority are visited first, and all their users rank above the next account’s users.
+Final factor: fairshare_factor = rank / total_users.
+The practical effect is that one heavy user drags their whole account down, but cannot hurt users in other accounts.
+
+Usage decay:
+
+usage(t) = usage(0) × 0.5^( t / PriorityDecayHalfLife )
+PriorityDecayHalfLife defaults to 7 days. It is the Slurm equivalent of LSF’s HIST_HOURS.
+Usage is charged in TRES-billing units, weighted by TRESBillingWeights per partition.
+PriorityCalcPeriod (default 5 minutes) sets how often priorities are recalculated.
+“Delay is creeping”: what to tweak
+
+1. Some users’ jobs keep sitting longer (priority problem)
+
+Lower PriorityDecayHalfLife. Past usage is forgiven faster. Seven days is long for bursty research groups.
+Rebalance weights. **Raise** PriorityWeightAge and set PriorityMaxAge so long-waiting jobs eventually rise regardless of fairshare. Or lower PriorityWeightFairshare if it dominates.
+Adjust shares with sacctmgr modify account/user ... set fairshare=N.
+Check TRESBillingWeights. GPU or memory-heavy jobs may be charged more than you intend.
+Last resort: PriorityUsageResetPeriod resets usage periodically, or sacctmgr modify user ... set rawusage=0 resets one user.
+Diagnose with sprio -l to see which factor dominates a pending job, and sshare -l -a to see shares, usage, and the fairshare factor across the tree.
+
+2. The controller is slow (scheduler or RPC latency)
+
+In SchedulerParameters:
+
+default_queue_depth, sched_interval, sched_min_interval: limit how much of the queue the main scheduler examines each pass, and how often it runs.
+bf_interval, bf_max_job_test, bf_max_job_user, bf_window, bf_resolution, bf_continue, bf_yield_interval: backfill is usually the most expensive pass. A large bf_window with a small bf_resolution is a classic slowdown.
+max_rpc_cnt: the scheduler defers when the RPC backlog is high, which protects submit responsiveness.
+defer and batch_sched_delay: stop the controller from trying to schedule on every submit, which helps high submit rates.
+
+Other areas:
+
+Raise PriorityCalcPeriod if fairshare recalculation itself is costly on a large association tree.
+Check slurmdbd and MariaDB. A slow accounting backend, missing purge settings (PurgeJobAfter and similar), or a huge job table can back up slurmctld. The agent queue grows and sacct/sshare calls slow down.
+Reduce user polling. Heavy squeue loops in scripts or workflow engines hammer the controller. Use job arrays, and on newer versions rl_* rate limiting.
+**Diagnose with sdiag.** It shows main and backfill cycle times, queue depth tested, RPC counts by type and user, and the agent queue size. Th*is is the counterpart of LSF’s badmin perfmon.*
+
+## Explaining Slurm's multifactor priority and fair-share formulas.
+Slurm uses a different model. Fairshare is one weighted term inside a bigger multifactor priority sum, not the whole formula as in LSF.
+
+Slurm multifactor priority
+Job_priority = site_factor
+             + PriorityWeightAge       × age_factor
+             + PriorityWeightAssoc     × assoc_factor
+             + PriorityWeightFairshare × fairshare_factor
+             + PriorityWeightJobSize   × job_size_factor
+             + PriorityWeightPartition × partition_factor
+             + PriorityWeightQOS       × qos_factor
+             + Σ (PriorityWeightTRES_i × TRES_factor_i)
+             − nice_factor
+Every factor is normalized to the range 0.0 to 1.0. The weights (integers in slurm.conf) decide how much each factor matters. So a common interview point: fairshare only matters as much as PriorityWeightFairshare allows relative to the other weights.
+
+The fairshare factor itself
+Classic algorithm:
+
+F = 2^( −U_effective / S_normalized / PriorityDampeningFactor )
+S: your shares divided by the total shares at that level, multiplied down the tree.
+U: your decayed usage divided by total usage.
+When U = S (you used exactly your share), F = 0.5.
+Unused share pushes F toward 1, and overuse pushes F toward 0.
+Effective usage also pulls in the parent account’s usage:
+U_eff = U_self + (U_parent_eff − U_self) × (S_self / S_siblings)
+Fair Tree (default since 19.05):
+
+At each level of the account tree it computes LevelFS = S / U, where S and U are your fraction of the shares and usage among your siblings.
+It then walks the tree depth-first, sorting siblings by LevelFS. Accounts that deserve more priority are visited first, and all their users rank above the next account’s users.
+Final factor: fairshare_factor = rank / total_users.
+The practical effect is that one heavy user drags their whole account down, but cannot hurt users in other accounts.
+Usage decay:
+
+usage(t) = usage(0) × 0.5^( t / PriorityDecayHalfLife )
+PriorityDecayHalfLife defaults to 7 days. It is the Slurm equivalent of LSF’s HIST_HOURS.
+Usage is charged in TRES-billing units, weighted by TRESBillingWeights per partition.
+PriorityCalcPeriod (default 5 minutes) sets how often priorities are recalculated.
+“Delay is creeping”: what to tweak
+1. Some users’ jobs keep sitting longer (priority problem)
+
+Lower PriorityDecayHalfLife. Past usage is forgiven faster. Seven days is long for bursty research groups.
+Rebalance weights. Raise PriorityWeightAge and set PriorityMaxAge so long-waiting jobs eventually rise regardless of fairshare. Or lower PriorityWeightFairshare if it dominates.
+Adjust shares with sacctmgr modify account/user ... set fairshare=N.
+Check TRESBillingWeights. GPU or memory-heavy jobs may be charged more than you intend.
+Last resort: PriorityUsageResetPeriod resets usage periodically, or sacctmgr modify user ... set rawusage=0 resets one user.
+Diagnose with sprio -l to see which factor dominates a pending job, and sshare -l -a to see shares, usage, and the fairshare factor across the tree.
+2. The controller is slow (scheduler or RPC latency)
+
+In SchedulerParameters:
+
+default_queue_depth, sched_interval, sched_min_interval: limit how much of the queue the main scheduler examines each pass, and how often it runs.
+bf_interval, bf_max_job_test, bf_max_job_user, bf_window, bf_resolution, bf_continue, bf_yield_interval: backfill is usually the most expensive pass. A large bf_window with a small bf_resolution is a classic slowdown.
+max_rpc_cnt: the scheduler defers when the RPC backlog is high, which protects submit responsiveness.
+defer and batch_sched_delay: stop the controller from trying to schedule on every submit, which helps high submit rates.
+Other areas:
+
+Raise PriorityCalcPeriod if fairshare recalculation itself is costly on a large association tree.
+Check slurmdbd and MariaDB. A slow accounting backend, missing purge settings (PurgeJobAfter and similar), or a huge job table can back up slurmctld. The agent queue grows and sacct/sshare calls slow down.
+Reduce user polling. Heavy squeue loops in scripts or workflow engines hammer the controller. Use job arrays, and on newer versions rl_* rate limiting.
+Diagnose with sdiag. It shows main and backfill cycle times, queue depth tested, RPC counts by type and user, and the agent queue size. This is the counterpart of LSF’s badmin perfmon.
+
+“In Slurm, fairshare is one weighted factor, so I’d first run sprio to see whether fairshare is actually what’s holding jobs back. Then I’d tune PriorityDecayHalfLife and the weight balance, especially age versus fairshare. If it’s controller latency instead, I’d use sdiag to see whether backfill cycle time or RPC load is the problem, tune bf_* and max_rpc_cnt, and check slurmdbd health.”
+
+LSF vs Slurm in one line: LSF computes priority as shares divided by weighted usage at each tree level. Slurm turns shares and usage into a normalized 0–1 factor and adds it to other weighted factors.
+
+Grid Engine (SGE, then Univa, now Altair) is the most layered of the three. Fairshare lives inside a ticket system, and tickets are only one of three terms in the final priority.
+
+Final job priority
+prio = weight_priority × npprior
+     + weight_urgency  × nurg
+     + weight_ticket   × ntckts
+
+These weights are set in qconf -msconf. Defaults: weight_priority=1.0, weight_urgency=0.1, weight_ticket=0.01.
+
+Term	What it is
+npprior	Normalized POSIX priority from qsub -p (−1023 to 1024, mapped to 0–1)
+nurg	Normalized urgency
+ntckts	Normalized ticket count. This is where fairshare lives.
+
+Urgency:
+
+urgency = rrcontr + wtcontr + dlcontr
+rrcontr: resource requests × the urgency value of each complex (qconf -mc), multiplied by slots.
+wtcontr: waiting_time × weight_waiting_time. This is the age factor.
+dlcontr: weight_deadline / time_left_to_deadline.
+Tickets: the fairshare part
+tickets = share_tree_tickets + functional_tickets + override_tickets
+
+The size of each ticket pool is set by weight_tickets_share, weight_tickets_functional, and override tickets assigned directly. policy_hierarchy (default OFS) sets the order in which the policies apply.
+
+Share tree policy (usage-based, historical):
+
+Long-term entitlement: each node’s share divided by its siblings’ total shares, multiplied down the tree path. It is the same idea as Slurm’s normalized shares.
+Actual usage:
+  usage = cpu × w_cpu + mem × w_mem + io × w_io
+
+The weights come from usage_weight_list. The default is CPU only.
+
+Decay: usage halves every halftime hours (default 168, i.e., 7 days). It is the counterpart of LSF’s HIST_HOURS and Slurm’s PriorityDecayHalfLife.
+Short-term entitlement: the long-term entitlement adjusted up or down depending on how far usage is below or above target. Underusers get more tickets and overusers get fewer.
+compensation_factor: caps how far that adjustment can go. With a value of 5, a node that has been idle can’t get more than 5× its long-term share. This stops one returning user from flooding the cluster.
+
+Functional policy (current, no history):
+
+Splits weight_tickets_functional by functional shares across user, project, department, and job.
+The split is controlled by weight_user, weight_project, weight_department, and weight_job.
+It has no memory of past usage. It only reflects what is running and pending now.
+
+Override: tickets given manually to a user, project, or job, for a temporary boost.
+
+One way to frame it: share tree is “fair over the past week,” functional is “fair right now,” and override is “admin says so.”
+
+“Delay is creeping”: what to tweak
+
+1. Some users’ or projects’ jobs keep waiting longer (priority problem)
+
+Lower halftime. Past usage is forgiven faster.
+Lower compensation_factor. Use this if one returning heavy user swings priority too hard.
+Shift ticket pools. Increase weight_tickets_functional relative to weight_tickets_share for less history-driven behavior.
+Raise weight_waiting_time or weight_urgency so aging jobs eventually win.
+Watch the ticket weight. weight_ticket is tiny by default (0.01). If you’ve raised it, tickets may now drown out everything else.
+Adjust node shares in the share tree with qconf -mstree.
+Diagnose:
+qstat -pri shows how each job’s priority breaks down.
+qstat -urg shows the urgency components.
+qstat -ext shows the tickets.
+sge_share_mon shows share tree usage versus entitlement live.
+
+2. qmaster or scheduler is slow (latency problem)
+
+report_pjob_tickets=false. Computing and reporting tickets for every pending job is expensive with large queues. This is a classic fix.
+max_functional_jobs_to_schedule: limits how many pending jobs get functional tickets each pass.
+max_pending_tasks_per_job: large array jobs otherwise blow up scheduling work.
+reprioritize_interval=0: disables dynamic renicing of running jobs, which cuts execd/qmaster chatter.
+Scheduling cadence: schedule_interval, flush_submit_sec, and flush_finish_sec. Setting the flush values too low makes the scheduler run on every submit, which hurts high submit rates.
+max_reservation: resource reservation (-R y) is expensive. Keep it small.
+params PROFILE=1 (and MONITOR=1) in the scheduler config logs time per scheduling phase. This shows whether ticket calculation is actually the bottleneck.
+
+qmaster side:
+
+Thread count: set worker, listener, and (in Univa/Altair) reader threads. Reader threads keep qstat floods off the main path.
+Spooling: classic spooling, or BDB on slow or NFS storage, is a common hidden cause of submission latency.
+Health check: qping -info <qmaster> <port> qmaster 1 shows thread status and message backlog.
+
+A good one-line interview answer: “Grid Engine priority is POSIX priority plus urgency plus tickets, and fairshare is the share tree portion of the tickets. For starvation, I’d use qstat -pri to see which term dominates, then tune halftime, compensation_factor, and the share/functional ticket balance. For latency, the big wins are report_pjob_tickets=false, limiting functional ticket calculation, and fixing flush intervals and spooling.”
+
+All three side by side
+	LSF	Slurm	Grid Engine
+Fairshare form	shares ÷ weighted usage	2^(−U/S) or Fair Tree rank	share tree tickets
+Usage decay knob	HIST_HOURS	PriorityDecayHalfLife	halftime
+Age/wait factor	not in the fairshare formula	PriorityWeightAge	weight_waiting_time
+Priority diagnostic	bhpart -r	sprio / sshare	qstat -pri / sge_share_mon
+Performance diagnostic	badmin perfmon	sdiag	PROFILE=1, qping
+===========
+So among three , which has the most well balanced formuala for high rate short jobs
+
+For **high-rate short jobs**, LSF's formula is the best balanced of the three. But the reason is more interesting than "LSF is fastest," and the full answer has some caveats.
+
+## Why short jobs are a hard case
+
+Short jobs break fairshare in a specific way. Each job is too brief to build up much CPU or run time. So a formula based purely on historical usage barely notices a user who floods the queue with 100,000 thirty-second jobs. A good formula for this workload needs two kinds of terms:
+1. **An instantaneous term** that reacts within the current scheduling cycle to how much someone is running right now.
+2. **A decayed historical term** so that usage still counts once the burst ends.
+
+## How each one handles it
+
+**LSF: best balanced for this workload**
+- The denominator already mixes both kinds:
+  - **Instantaneous:** `(1 + job_slots) × RUN_JOB_FACTOR`.
+  - **Historical:** `cpu_time` and `run_time`, decayed by `HIST_HOURS`.
+- **Fast reaction:** `job_slots` changes the moment jobs dispatch. A user flooding short jobs loses priority within the same scheduling session, not minutes later.
+- **One knob for burstiness:** raising `RUN_JOB_FACTOR` versus `RUN_TIME_FACTOR` sets how much you care about concurrency versus duration.
+- **Built-in throughput tools:** job packs, chunk jobs, and arrays. This is part of why EDA, which is heavy on short regression and characterization jobs, has traditionally been LSF territory.
+
+**Grid Engine: most expressive, but the most expensive to compute**
+- It can reach the same balance:
+  - **The functional policy** is the "right now" term.
+  - **The share tree** is the historical term.
+  - **`compensation_factor`** caps overcorrection, which LSF doesn't have.
+- **On paper this is arguably the best design.**
+- **The cost:** tickets are calculated per pending job. At high submit rates that becomes the bottleneck. This is why `report_pjob_tickets=false` and `max_functional_jobs_to_schedule` exist.
+- **The tradeoff:** you trade scheduler throughput for policy richness.
+
+**Slurm: most principled and transparent, but it lags for short-job bursts**
+- **No instantaneous term:** the fairshare factor is purely decayed historical usage, recalculated every `PriorityCalcPeriod` (default 5 minutes). It has nothing like LSF's `job_slots` term.
+- **The result:** a burst of short jobs can take over the queue before fairshare catches up.
+- **Strengths:** Fair Tree's account isolation is excellent, and normalized 0–1 factors make tuning predictable.
+- **How Slurm sites compensate:** they control bursts with **QOS and association limits** (`MaxJobs`, `MaxSubmitJobs`, `GrpTRES`) rather than with fairshare. That works, but it's a separate mechanism, not a balanced formula.
+- **Per-job overhead:** controller and slurmdbd overhead per job is also higher. Slurm has a whole high-throughput tuning guide for this reason.
+
+## Summary
+
+| | Reacts to bursts instantly | Remembers history | Cost at high rate | Verdict for short jobs |
+|---|---|---|---|---|
+| **LSF** | Yes (`RUN_JOB_FACTOR`) | Yes | Low | **Best balanced** |
+| **Grid Engine** | Yes (functional) | Yes (share tree) | High (per-job tickets) | Richest, but costly |
+| **Slurm** | No (needs QOS limits) | Yes | Medium–high | Cleanest math, laggy for bursts |
+
+"For high-rate short jobs, LSF is the best balanced because its denominator combines an instantaneous concurrency term, `RUN_JOB_FACTOR × slots`, with decayed historical usage. Fairshare corrects within a scheduling cycle and still remembers the burst afterward. Grid Engine can express the same thing with functional plus share-tree tickets, but the ticket calculation gets expensive at high rates. *Slurm's fairshare is purely historical, so for short bursts you lean on QOS limits instead."*
+
+One caveat to keep ready: a good formula doesn't fix scheduler throughput. If submission latency is the actual problem, the job packs, arrays, and the tuning knobs from earlier matter more than the fairshare math.
+
+Hmm.. how to do translate observability into practice. Do shops develop a model which semi-automatically tunes fair share params in LSF
+
+Mostly no, at least not fully automatic. Most LSF shops run a human-in-the-loop setup: dashboards and alerts flag a fairness problem, an admin proposes a change, it gets approved, and someone runs badmin reconfig. **Closed-loop auto-tuning of RUN_JOB_FACTOR or HIST_HOURS is rare.**
+
+airshare is a policy that encodes agreements about who is entitled to what. It is not a performance metric. An auto-tuner needs an objective function, and “fair” is partly political. What shops do automate is usually share values fed from budgets or project allocations, plus guardrails.
+
+What “semi-automatic” looks like in practice is a pipeline of five steps.
+
+1. Turn observability into fairness SLOs
+
+Pick a few measurable targets:
+
+Entitlement error per group: actual_usage_fraction − entitled_share_fraction over a rolling window, such as 24 hours or 7 days.
+Pending time p50/p95 per group and queue. Raw averages hide starvation.
+**Max pending age.** T*his is the direct starvation signal.*
+Recovery time: after a group’s burst ends, how long until its priority returns to normal. This directly measures whether HIST_HOURS is right.
+Scheduler health: mbschd cycle time, dispatch latency, and submit rate. These separate a fairness problem from a throughput problem.
+2. Collect the data
+Source	Gives you
+bhpart -r, bqueues -r -l	Shares, dynamic priority, and usage per tree node
+bjobs -u all -p	Pending jobs and pending reasons
+lsb.acct / lsb.stream	Per-job history and real-time job events
+badmin perfmon	Submit rate, scheduling time, query load
+IBM’s RTM or LSF Explorer	Packaged versions of the above, if licensed
+
+A small exporter that scrapes these into Prometheus works well. If you already run Prometheus and Grafana for the cluster, this is mostly a new set of exporters and panels, not a new stack.
+
+3. Map symptoms to parameters
+
+This is the “model.” In most shops it is a rules table, not machine learning:
+
+Symptom	Likely cause	Adjust
+High-concurrency groups dominate during bursts	Concurrency penalty too weak	Raise RUN_JOB_FACTOR
+A group stays starved long after its burst ends	Usage is forgiven too slowly	Lower HIST_HOURS
+Long-runner groups always rank low	Run time weighted too heavily	Lower RUN_TIME_FACTOR
+Usage persistently diverges from entitlement over a week	Shares don’t match reality	Rebalance USER_SHARES
+Priority looks fine but dispatch is slow	Not a fairshare problem	Scheduler and mbatchd tuning
+4. Run a cheap what-if before changing anything
+
+The dynamic priority formula is just arithmetic. You can replay a day of lsb.acct data, recompute each group’s priority with candidate factor values, and see how the ranking would have shifted. This is an approximation, because it ignores the feedback effect of the changed dispatch order. Still, it catches bad ideas before they reach production. IBM also offers an LSF simulator for full trace replay, if your license includes it.
+
+5. Make the change with guardrails
+One parameter at a time, in bounded steps. For example, change RUN_JOB_FACTOR by no more than ±25% per change.
+Wait long enough between changes. At minimum, wait one or two HIST_HOURS periods, or the effects are still settling when you judge them.
+Track every change with a rollback. Keep lsb.params and lsb.users in git, and log each badmin reconfig next to the dashboard annotations.
+A human approves the change. The tool proposes and a person decides.
+Where real automation does fit
+
+LSF has a built-in hook: the FAIRSHARE_ADJUSTMENT_FACTOR plugin (libfairshareadjust). It adds a per-user term computed by your code every scheduling cycle. A common use is to correct for longer-term entitlement error than HIST_HOURS can see. For example, the plugin can give a small boost to groups that are under their weekly entitlement. Keep it cheap and cached, because it runs on every cycle. A slow plugin is exactly the scheduler latency problem we discussed earlier.
+
+ “I’d define *fairness SLOs* like entitlement error, p95 pending time, and recovery time after a burst, then export LSF data into Prometheus. Each symptom maps to a specific factor. Changes are what-if tested against accounting replay, made one at a time with a human approving. *Automation goes into share values or a lightweight fairshare-adjust plugin, not into rewriting the factors on the fly.*”
