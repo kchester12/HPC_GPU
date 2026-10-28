@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NCCL and GPUDirect RDMA</title>
+<meta name="description" content="The layer between the RDMA fabric and GPU workloads: what NCCL does, how GPUDirect RDMA moves data, and why PCIe topology decides performance.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>NCCL and GPUDirect RDMA</h1>
+<p class="sub">The layer between the RDMA fabric and GPU workloads: what NCCL does, how GPUDirect RDMA moves data, and why PCIe topology decides performance.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#why-this-layer-exists">Why this layer exists</a></li><li><a href="#nccl-fundamentals">NCCL fundamentals</a></li><li><a href="#gpudirect-rdma-mechanics">GPUDirect RDMA mechanics</a></li><li><a href="#what-carries-over-from-fabric-operations">What carries over from fabric operations</a></li></ol></nav>
+
+<section class="part" id="why-this-layer-exists"><h2>1. Why this layer exists</h2>
+<p>In traditional HPC and EDA workloads, RDMA moves data between <strong>host memory</strong> on different machines. That is the world the <a href="infiniband_roce_hpc.html">InfiniBand and RoCE page</a> covers.</p>
+<p>In GPU workloads such as distributed training and large-model inference, the data that needs to move fastest lives in <strong>GPU memory (HBM)</strong>. A naive path would be: GPU memory → host memory → RDMA to the remote host → remote GPU memory. That adds two copies and CPU involvement to every transfer, which is exactly the overhead RDMA was meant to remove.</p>
+<p><strong>GPUDirect RDMA (GDR)</strong> removes those hops: the NIC reads and writes <strong>directly to and from GPU memory</strong>, skipping host memory. <strong>NCCL</strong> (NVIDIA Collective Communications Library) sits on top and decides <em>which</em> GPUs talk to <em>which</em>, using GDR as the transport when it is available.</p>
+<blockquote>
+<p><strong>The one model to keep:</strong> NCCL is the "what to communicate" layer, GPUDirect RDMA is the "how it physically moves" layer, and IB or RoCE is the fabric under both.</p>
+</blockquote>
+</section><section class="part" id="nccl-fundamentals"><h2>2. NCCL fundamentals</h2>
+<h3>What it does</h3>
+<p>NCCL implements <strong>collective communication primitives</strong>, the patterns distributed training actually needs:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Primitive</th>
+<th>What it does</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>AllReduce</strong></td>
+<td>Combines (for example, sums) data across all GPUs and returns the result to all of them</td>
+<td>Gradient synchronization in data-parallel training, the most common operation</td>
+</tr>
+<tr>
+<td><strong>Broadcast</strong></td>
+<td>Sends one GPU's data to all others</td>
+<td>Distributing initial model weights</td>
+</tr>
+<tr>
+<td><strong>AllGather</strong></td>
+<td>Collects each GPU's data and shares it with every GPU</td>
+<td>Assembling sharded data in tensor or model parallelism</td>
+</tr>
+<tr>
+<td><strong>ReduceScatter</strong></td>
+<td>Combines data, then splits the result across GPUs</td>
+<td>Paired with AllGather in optimized AllReduce and in sharded-optimizer training (ZeRO, FSDP)</td>
+</tr>
+</tbody>
+</table></div>
+<h3>Topology awareness</h3>
+<p>At startup NCCL detects how GPUs are connected: NVLink between GPUs in the same host, the PCIe tree, and which NICs sit closest to which GPUs. It then picks ring or tree patterns that respect that layout. This is the same "locality matters" principle as fabric-aware job placement, one level down.</p>
+<p><strong>Operational implication:</strong> an asymmetric PCIe/NIC layout (for example, a GPU whose nearest NIC is on a different root complex) slows NCCL down without raising errors. It is a common source of "this cluster benchmarks worse than it should" tickets.</p>
+<h3>Key variables and tools</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variable / tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NCCL_DEBUG=INFO</code></td>
+<td>NCCL's diagnostic logging, the first thing to turn on for any multi-node issue. Look for <code>GDRDMA</code> in the transport lines to confirm GDR is in use.</td>
+</tr>
+<tr>
+<td><code>NCCL_IB_HCA</code></td>
+<td>Pins which HCAs NCCL uses, important on multi-NIC nodes</td>
+</tr>
+<tr>
+<td><code>NCCL_SOCKET_IFNAME</code></td>
+<td>Interface for NCCL's bootstrap and control traffic (non-RDMA)</td>
+</tr>
+<tr>
+<td><code>NCCL_NET_GDR_LEVEL</code></td>
+<td>How close GPU and NIC must be (in PCIe terms) before NCCL uses GDR instead of host-staged copies</td>
+</tr>
+<tr>
+<td><code>nccl-tests</code></td>
+<td>NVIDIA's benchmark suite (<code>all_reduce_perf</code> and friends) for validating a new or suspect segment, the GPU counterpart of <code>ib_write_bw</code></td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="gpudirect-rdma-mechanics"><h2>3. GPUDirect RDMA mechanics</h2>
+<h3>What makes it possible</h3>
+<p>The NIC's DMA engine is given direct access to GPU memory over <strong>PCIe peer-to-peer</strong>, so data moves between NIC and GPU without the CPU or host RAM in the path. On Linux this requires the <strong><code>nvidia-peermem</code></strong> kernel module (the older out-of-tree module was <code>nv_peer_mem</code>), or DMA-BUF support in newer driver and kernel combinations.</p>
+<h3>Why PCIe topology decides performance</h3>
+<p>GDR performance depends heavily on whether the GPU and its NIC sit under the <strong>same PCIe switch</strong>, or whether traffic has to cross the root complex or, worse, the inter-socket link (QPI/UPI). That is why GPU servers built for this work (NVIDIA HGX/DGX-class systems and equivalents) pair each GPU with a NIC on a shared PCIe switch. <code>nvidia-smi topo -m</code> shows the relationship: <code>PIX</code> or <code>PXB</code> between a GPU and NIC is good; <code>SYS</code> means traffic crosses sockets.</p>
+<h3>Common failure and degradation modes</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>Likely cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Throughput far below expected, no errors</td>
+<td>GDR not engaged and NCCL silently falling back to host-staged copies. Check <code>NCCL_DEBUG=INFO</code> for the transport chosen, and confirm <code>lsmod | grep nvidia_peermem</code>.</td>
+</tr>
+<tr>
+<td>Inconsistent performance across identical nodes</td>
+<td>Asymmetric PCIe topology, or BIOS differences (ACS or IOMMU settings blocking peer-to-peer) on some nodes</td>
+</tr>
+<tr>
+<td>Job hangs at NCCL init</td>
+<td>Usually fabric or network: check port state, then error counters, then fabric-wide state (SM or DCB) before suspecting training code</td>
+</tr>
+<tr>
+<td>Works on one node, fails across nodes</td>
+<td>Almost always the fabric (IB/RoCE misconfiguration) or a firewall blocking NCCL's bootstrap traffic, not NCCL or the model code</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="what-carries-over-from-fabric-operations"><h2>4. What carries over from fabric operations</h2>
+<p>The diagnostic discipline doesn't change: rule out config, check local hardware and port state, check error counters, check fabric-wide state, and only then suspect the application. What's new is:</p>
+<ul>
+<li>One more layer below the fabric to be aware of (PCIe and NVLink topology)</li>
+<li>A few more tools (<code>NCCL_DEBUG</code>, <code>nccl-tests</code>, <code>nvidia-smi topo -m</code>) alongside <code>ibstat</code>, <code>mlxlink</code>, and <code>ethtool</code></li>
+<li>One new mental model (collectives) that explains why the traffic pattern looks the way it does</li>
+</ul>
+<blockquote>
+<p><strong>Before production:</strong> check environment variable names and defaults against NVIDIA's current NCCL documentation, since they change between releases.</p>
+</blockquote></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slurm GPU Partition Hardening Checklist</title>
+<meta name="description" content="A security hardening checklist for GPU nodes under Slurm on Rocky Linux 9: isolation, access, drivers, containers, monitoring, fabric, and firmware.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#ff6b7a;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Slurm GPU Partition Hardening Checklist</h1>
+<p class="sub">A security hardening checklist for GPU nodes under Slurm on Rocky Linux 9: isolation, access, drivers, containers, monitoring, fabric, and firmware.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#device-isolation-slurm-and-cgroups">Device isolation (Slurm and cgroups)</a></li><li><a href="#node-access-control">Node access control</a></li><li><a href="#nvidia-driver-hardening">NVIDIA driver hardening</a></li><li><a href="#job-prolog-and-epilog">Job prolog and epilog</a></li><li><a href="#mig-a100-h100-class-and-newer-gpus">MIG (A100/H100-class and newer GPUs)</a></li><li><a href="#containers">Containers</a></li><li><a href="#monitoring-and-detection">Monitoring and detection</a></li><li><a href="#fabric-infiniband-roce">Fabric (InfiniBand/RoCE)</a></li><li><a href="#firmware-and-out-of-band-management">Firmware and out-of-band management</a></li><li><a href="#data-hygiene">Data hygiene</a></li></ol></nav>
+<div class="progress"><span id="cnt"></span><span class="bar"><i></i></span><button id="clr" type="button">Clear</button></div>
+<blockquote>
+<p><strong>How to use this:</strong> test each change on one node before rolling it out, and confirm option names against your Slurm and driver versions.</p>
+</blockquote>
+<section class="part" id="device-isolation-slurm-and-cgroups"><h2>1. Device isolation (Slurm and cgroups)</h2>
+<ul class="task-list">
+<li class="task-list-item">
+<p><input type="checkbox"/> <strong>slurm.conf:</strong> use cgroup-based tracking and task plugins.</p>
+<div class="highlight"><pre><span></span><code>ProctrackType=proctrack/cgroup
+TaskPlugin=task/cgroup,task/affinity
+GresTypes=gpu
+PrologFlags=Contain
+</code></pre></div>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox"/> <strong>cgroup.conf:</strong> constrain devices, cores, and memory so jobs only see their allocated GPUs. Rocky 9 uses cgroup v2 by default.</p>
+<div class="highlight"><pre><span></span><code>CgroupPlugin=cgroup/v2
+ConstrainDevices=yes
+ConstrainCores=yes
+ConstrainRAMSpace=yes
+</code></pre></div>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox"/> <strong>gres.conf:</strong> use <code>AutoDetect=nvml</code> so Slurm maps GPUs, including MIG slices, from the hardware. Hand-written device paths can drift.</p>
+</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Verify:</strong> run a 1-GPU job on a multi-GPU node and confirm <code>nvidia-smi</code> inside it shows only one device.</li>
+</ul>
+</section><section class="part" id="node-access-control"><h2>2. Node access control</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>pam_slurm_adopt:</strong> add it to the account section of <code>/etc/pam.d/sshd</code> so users can only SSH to nodes where they have a running job. The session is adopted into the job's cgroup, so it inherits the GPU restriction. Requires <code>PrologFlags=Contain</code>.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Remove pam_systemd from the sshd stack.</strong> Otherwise systemd moves the SSH session into its own user slice and it escapes the job's cgroup.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Admin exemption:</strong> exempt admins with a <code>pam_access</code> rule placed before <code>pam_slurm_adopt</code>.</li>
+</ul>
+</section><section class="part" id="nvidia-driver-hardening"><h2>3. NVIDIA driver hardening</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Driver repo:</strong> install from NVIDIA's Rocky 9 repo, then pin the version with <code>dnf versionlock</code> so unattended updates don't swap drivers in production.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Security bulletins:</strong> subscribe to NVIDIA's security bulletins and set a patch cadence. Driver CVEs come out several times a year, and your vulnerability scanner should flag them too.</li>
+<li class="task-list-item">
+<p><input type="checkbox"/> <strong>Profiling restriction:</strong> make sure <code>/etc/modprobe.d/nvidia.conf</code> contains the line below. Recent drivers default to it, but setting it explicitly protects against a package or local change turning it off. It blocks the performance-counter side channel that lets one user profile another user's GPU work.</p>
+<div class="highlight"><pre><span></span><code>options nvidia NVreg_RestrictProfilingToAdminUsers=1
+</code></pre></div>
+</li>
+<li class="task-list-item">
+<p><input type="checkbox"/> <strong>Persistence daemon:</strong> enable <code>nvidia-persistenced</code> instead of setting persistence mode by hand, and run it as a non-root user.</p>
+</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>SELinux:</strong> keep it enforcing. The NVIDIA driver works with it, so investigate AVC denials rather than switching it off.</li>
+</ul>
+</section><section class="part" id="job-prolog-and-epilog"><h2>4. Job prolog and epilog</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Stray processes:</strong> in the epilog, check for leftover GPU processes with <code>nvidia-smi --query-compute-apps=pid --format=csv,noheader</code> and kill any you find. If they won't die, drain the node with a reason so the next user doesn't inherit a dirty GPU.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>GPU settings:</strong> return application clocks and compute mode to your site baseline in case a job changed them (for example, <code>nvidia-smi -rac</code>, then re-apply your standard compute mode).</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Health check:</strong> run a quick check before returning the node, either <code>dcgmi diag -r 1</code> or NHC with GPU checks.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Sharing modes:</strong> use <code>EXCLUSIVE_PROCESS</code> compute mode as the baseline on shared nodes, and don't run MPS across different users.</li>
+</ul>
+</section><section class="part" id="mig-a100-h100-class-and-newer-gpus"><h2>5. MIG (A100/H100-class and newer GPUs)</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Partitioning:</strong> use MIG rather than MPS or time-slicing for multi-user sharing. MIG gives hardware memory isolation; the other two don't.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Persistence:</strong> manage MIG layouts with <code>nvidia-mig-parted</code> so they survive reboots, and let <code>AutoDetect=nvml</code> expose the slices as GRES.</li>
+</ul>
+</section><section class="part" id="containers"><h2>6. Containers</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Apptainer:</strong> set <code>allow setuid = no</code> in <code>apptainer.conf</code> and use unprivileged user-namespace mode. Users run GPU containers with <code>--nv</code>.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>NVIDIA Container Toolkit:</strong> if installed, keep it on the latest release. CVE-2024-0132 and CVE-2025-23266 were both container escapes.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Image sources:</strong> point users to an approved registry or a local cache of vetted NGC images instead of arbitrary Docker Hub pulls.</li>
+</ul>
+</section><section class="part" id="monitoring-and-detection"><h2>7. Monitoring and detection</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Metrics:</strong> run <code>dcgm-exporter</code> on GPU nodes and scrape it from your existing Prometheus.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Idle-node alert:</strong> alert when GPU utilization is above about 10% on a node Slurm reports as idle. That's the classic cryptomining signal.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Xid errors:</strong> forward kernel logs centrally and alert on Xid codes. Treat 48, 63, 64, 79, 94, and 95 as high priority. Xid 79 means the GPU fell off the bus, and 48 is a double-bit ECC error.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>DCGM hostengine:</strong> bind <code>nv-hostengine</code> (port 5555) to localhost or the management VLAN only.</li>
+</ul>
+</section><section class="part" id="fabric-infiniband-roce"><h2>8. Fabric (InfiniBand/RoCE)</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Partitioning:</strong> configure P_Keys in OpenSM or UFM to separate tenant traffic from storage traffic.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Subnet Manager:</strong> run it on dedicated, locked-down hosts, and restrict who can run <code>ibdiagnet</code> or change SM configuration.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>NVSwitch systems:</strong> keep <code>nvidia-fabricmanager</code> at the same version as the driver, with no external exposure.</li>
+</ul>
+</section><section class="part" id="firmware-and-out-of-band-management"><h2>9. Firmware and out-of-band management</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Firmware inventory:</strong> track GPU VBIOS and NVSwitch firmware versions alongside BIOS, and update them with NVIDIA's firmware bundles during maintenance windows.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>BMC network:</strong> keep iLO/iDRAC on an isolated management network with current firmware. A compromised BMC owns the GPUs too.</li>
+</ul>
+</section><section class="part" id="data-hygiene"><h2>10. Data hygiene</h2>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> <strong>Permissions:</strong> default dataset and scratch directories to <code>0750</code> or group-based access, never world-readable.</li>
+<li class="task-list-item"><input type="checkbox"/> <strong>Model files:</strong> encourage <code>safetensors</code> over pickle-based checkpoints, since pickle files can execute code when loaded.</li>
+</ul></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+<script>
+(()=>{const key='chk:'+location.pathname;let st={};try{st=JSON.parse(localStorage.getItem(key)||'{}')}catch(e){}
+const boxes=[...document.querySelectorAll('li.task-list-item input[type=checkbox]')];
+const bar=document.querySelector('.bar i'),cnt=document.getElementById('cnt');
+function upd(){const n=boxes.filter(b=>b.checked).length;cnt.textContent=n+' of '+boxes.length+' done';bar.style.width=(boxes.length?100*n/boxes.length:0)+'%';
+boxes.forEach(b=>b.closest('li').classList.toggle('done',b.checked))}
+boxes.forEach((b,i)=>{b.disabled=false;b.checked=!!st[i];b.addEventListener('change',()=>{st[i]=b.checked;try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}upd()})});
+document.getElementById('clr').onclick=()=>{st={};boxes.forEach(b=>b.checked=false);try{localStorage.removeItem(key)}catch(e){}upd()};upd()})();
+</script>
+</body>
+</html>

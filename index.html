@@ -61,7 +61,6 @@ footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
    Copy one { ... }, block, paste it below the last one, and edit it.
    - file:  the exact filename you uploaded (case-sensitive)
    - tags:  short labels; matching tags become filter buttons automatically
-   - date:  optional, shown on the card
    - soon:  true shows a greyed "Coming soon" card with no link
    ===================================================================== */
 const pages = [
@@ -69,15 +68,37 @@ const pages = [
     title: "GPU & CUDA HPC Sysadmin Workflow",
     file:  "gpu_cuda_hpc_runbook.html",
     desc:  "Bottom-up troubleshooting for Linux GPU nodes: PCIe, driver, nvidia-smi, CUDA, scheduler isolation, performance, and hardware faults.",
-    tags:  ["GPU", "CUDA", "Slurm", "LSF"],
-    date:  "Oct 2026"
+    tags:  ["GPU", "CUDA", "Troubleshooting"],
+  },
+  {
+    title: "Slurm GPU Partition Hardening Checklist",
+    file:  "slurm_gpu_hardening.html",
+    desc:  "Security checklist for GPU nodes on Rocky Linux 9: cgroup isolation, pam_slurm_adopt, driver and container hardening, MIG, monitoring, fabric, and firmware.",
+    tags:  ["GPU", "Slurm", "Security"],
+  },
+  {
+    title: "NCCL and GPUDirect RDMA",
+    file:  "nccl_gpudirect_rdma.html",
+    desc:  "What NCCL collectives do, how GPUDirect RDMA moves data straight between NIC and GPU, and why PCIe topology decides multi-node GPU performance.",
+    tags:  ["GPU", "Fabric", "NCCL"],
+  },
+  {
+    title: "InfiniBand and RoCE for HPC Schedulers",
+    file:  "infiniband_roce_hpc.html",
+    desc:  "How IB and RoCE v2 differ, their typical failure modes, key diagnostic tools, and how to make LSF and Slurm placement fabric-aware.",
+    tags:  ["Fabric", "LSF", "Slurm"],
   },
   {
     title: "Fairshare and Scheduler Tuning: LSF, Slurm, Grid Engine",
     file:  "job_scheduling_tuning.html",
-    desc:  "How each scheduler computes fairshare priority, what to tune when job delays creep up, which handles high-rate short jobs best, and how to tune safely from observability data.",
+    desc:  "How each scheduler computes fairshare priority, what to tune when job delays creep up, which handles high-rate short jobs best, and how to tune safely.",
     tags:  ["Scheduling", "LSF", "Slurm", "Grid Engine"],
-    date:  "Oct 2026"
+  },
+  {
+    title: "After an OOM Kill: Reboot or Not?",
+    file:  "oom_recovery.html",
+    desc:  "How to tell whether a node recovered cleanly from an out-of-memory event, when to reboot, and how to keep cluster nodes from getting there.",
+    tags:  ["Linux", "Slurm", "Troubleshooting"],
   },
 ];
 /* ===================== nothing to edit below this line ===================== */

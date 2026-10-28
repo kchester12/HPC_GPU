@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>InfiniBand and RoCE for HPC Schedulers</title>
+<meta name="description" content="How the two RDMA fabrics differ, where they fail, and how to make LSF (and Slurm) fabric-aware.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#7aa7ff;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>InfiniBand and RoCE for HPC Schedulers</h1>
+<p class="sub">How the two RDMA fabrics differ, where they fail, and how to make LSF (and Slurm) fabric-aware.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#why-rdma-fabrics-exist">Why RDMA fabrics exist</a></li><li><a href="#infiniband-architecture">InfiniBand architecture</a></li><li><a href="#roce-architecture">RoCE architecture</a></li><li><a href="#side-by-side">Side by side</a></li><li><a href="#making-the-scheduler-fabric-aware">Making the scheduler fabric-aware</a></li></ol></nav>
+
+<section class="part" id="why-rdma-fabrics-exist"><h2>1. Why RDMA fabrics exist</h2>
+<p>Both InfiniBand and RoCE solve the same problem: <strong>standard TCP/IP networking is too slow and too CPU-hungry for tightly coupled HPC workloads</strong> such as large MPI jobs, distributed training, and tightly synchronized emulation runs.</p>
+<p>The fix is <strong>RDMA (Remote Direct Memory Access)</strong>: one server's NIC writes directly into another server's memory, bypassing the kernel, the TCP/IP stack, and almost all CPU involvement. That gives you:</p>
+<ul>
+<li><strong>Low single-digit microsecond latency</strong>, versus tens of microseconds for a TCP round trip through the kernel stack</li>
+<li><strong>Near-zero CPU overhead</strong> for data movement, because the NIC does the work</li>
+<li><strong>High sustained bandwidth</strong> with minimal jitter</li>
+</ul>
+<p><strong>InfiniBand</strong> is a purpose-built RDMA fabric with its own physical layer, switches, and management protocol.</p>
+<p><strong>RoCE (RDMA over Converged Ethernet)</strong> carries the same RDMA verbs over Ethernet, so you get RDMA-class performance on Ethernet switches, cabling, and tooling your team already knows.</p>
+<p>At the application layer they are <strong>not competing technologies</strong>. An MPI job calling RDMA verbs doesn't fundamentally care whether IB or RoCE is underneath. The differences are in the <strong>fabric, management, and failure modes</strong>, which is exactly where an HPC operations engineer works.</p>
+</section><section class="part" id="infiniband-architecture"><h2>2. InfiniBand architecture</h2>
+<h3>Physical and link layer</h3>
+<ul>
+<li>Dedicated IB switches and HCAs (Host Channel Adapters), not shared with general Ethernet traffic.</li>
+<li>Link speeds named by generation: SDR, DDR, QDR, FDR, EDR, HDR, NDR, XDR, with throughput rising each generation.</li>
+<li>Usually deployed in a <strong>fat-tree (Clos) topology</strong>, because non-blocking or near-non-blocking bisection bandwidth is the whole point.</li>
+</ul>
+<h3>The Subnet Manager: the defining IB concept</h3>
+<p>This is the biggest conceptual difference from Ethernet.</p>
+<ul>
+<li>IB has <strong>no flooding, MAC learning, or spanning tree</strong>. A <strong>Subnet Manager</strong> (usually <strong>OpenSM</strong>, or a vendor SM such as NVIDIA UFM) discovers the fabric topology and <strong>assigns LIDs (Local Identifiers) and routes to every port</strong>.</li>
+<li>The SM runs on a host or a managed switch and must be <strong>highly available</strong>. Fabrics normally run a master plus standby SMs with election. SM failover is a classic operational risk.</li>
+<li>Routing tables, partition keys (<strong>P_Keys</strong>, IB's VLAN-like segmentation), and QoS policies are all pushed out by the SM.</li>
+<li><strong>Operational implication:</strong> an IB fabric problem is very often an SM problem (stale routing, failover storms, P_Key misconfiguration) rather than a cable or card fault.</li>
+</ul>
+<h3>Key IB tools</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ibstat</code> / <code>ibv_devinfo</code></td>
+<td>Local HCA port state, link speed and width</td>
+</tr>
+<tr>
+<td><code>ibnetdiscover</code></td>
+<td>Walk and map the whole fabric topology</td>
+</tr>
+<tr>
+<td><code>ibdiagnet</code></td>
+<td>Comprehensive fabric health sweep</td>
+</tr>
+<tr>
+<td><code>ibqueryerrors</code> / <code>perfquery</code></td>
+<td>Per-port error counters (symbol errors, link downs, and so on)</td>
+</tr>
+<tr>
+<td>OpenSM logs</td>
+<td>SM state, routing recalculation, sweep events</td>
+</tr>
+<tr>
+<td><code>smpquery</code> / <code>saquery</code></td>
+<td>Query subnet management and administration data directly</td>
+</tr>
+<tr>
+<td><code>ibportstate</code></td>
+<td>Query, enable, or disable a specific port</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="roce-architecture"><h2>3. RoCE architecture</h2>
+<h3>RoCE v1 vs RoCE v2</h3>
+<ul>
+<li><strong>RoCE v1:</strong> RDMA encapsulated directly in Ethernet frames (layer 2 only). Not routable and rarely used today.</li>
+<li><strong>RoCE v2:</strong> RDMA encapsulated in <strong>UDP/IP</strong> (port 4791), so it is routable. Essentially all modern deployments, including ConnectX-6 Lx environments, use v2.</li>
+</ul>
+<h3>The catch: Ethernet must be made lossless</h3>
+<p>Standard Ethernet drops packets under congestion and relies on TCP to retransmit. RDMA tolerates loss poorly, so RoCE needs <strong>lossless or near-lossless Ethernet</strong>, built from:</p>
+<ul>
+<li><strong>PFC (Priority Flow Control, IEEE 802.1Qbb):</strong> pauses specific traffic <em>classes</em>, not the whole link, when a receive buffer fills, instead of dropping.</li>
+<li><strong>ECN with DCQCN (Data Center Quantized Congestion Notification):</strong> proactive congestion signaling so senders back off before PFC pauses are needed. DCQCN is the standard RoCE v2 congestion-control algorithm.</li>
+<li><strong>DCB (Data Center Bridging):</strong> the switch feature set (PFC, ETS, DCBX) that must be configured <strong>correctly and consistently on every hop</strong>. Inconsistency here is by far the most common source of RoCE production incidents.</li>
+</ul>
+<p><strong>Operational implication:</strong> RoCE stability problems are disproportionately <strong>switch QoS/DCB misconfiguration</strong>. A single hop with PFC or ECN settings that don't match the rest of the fabric is a classic cause of silent degradation: throughput drops or micro-stalls appear with no obvious link errors.</p>
+<h3>Key RoCE tools</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ethtool -S &lt;iface&gt;</code></td>
+<td>NIC counters, including pause frames and RoCE-relevant drops on NVIDIA/Mellanox NICs</td>
+</tr>
+<tr>
+<td><code>mlxconfig</code> / <code>mlxlink</code></td>
+<td>ConnectX firmware configuration and link diagnostics</td>
+</tr>
+<tr>
+<td><code>rdma</code> (iproute2)</td>
+<td>Linux-native view of RDMA devices and links</td>
+</tr>
+<tr>
+<td><code>ibv_devinfo</code></td>
+<td>Works for RoCE NICs too (same verbs API)</td>
+</tr>
+<tr>
+<td><code>show_gids</code> / <code>cma_roce_mode</code></td>
+<td>Confirm which GIDs are RoCE v2 and which mode RDMA-CM uses</td>
+</tr>
+<tr>
+<td>Switch DCB/PFC counters</td>
+<td>Pause-frame and ECN-marked packet counts, usually the real signal</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="side-by-side"><h2>4. Side by side</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>InfiniBand</th>
+<th>RoCE v2</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Fabric</td>
+<td>Dedicated IB switches</td>
+<td>Ethernet switches with DCB/PFC/ECN support</td>
+</tr>
+<tr>
+<td>Routing and management</td>
+<td>Centralized Subnet Manager (OpenSM/UFM)</td>
+<td>Standard IP routing plus switch QoS config</td>
+</tr>
+<tr>
+<td>Loss handling</td>
+<td>Credit-based flow control in the link layer</td>
+<td>PFC plus ECN/DCQCN, configured end to end</td>
+</tr>
+<tr>
+<td>Typical latency</td>
+<td>Lowest</td>
+<td>Very low, usually slightly above native IB</td>
+</tr>
+<tr>
+<td>Skill set</td>
+<td>Specialized (SM, P_Keys, IB tooling)</td>
+<td>Builds on existing Ethernet knowledge</td>
+</tr>
+<tr>
+<td>Common failure mode</td>
+<td>SM failover, stale routing, P_Key errors</td>
+<td>DCB/PFC/ECN mismatch on one hop, congestion stalls</td>
+</tr>
+<tr>
+<td>Cost and ecosystem</td>
+<td>Higher cost, IB-specific switches</td>
+<td>Reuses converged Ethernet infrastructure</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="making-the-scheduler-fabric-aware"><h2>5. Making the scheduler fabric-aware</h2>
+<h3>Why the scheduler needs to know about the fabric</h3>
+<p>For tightly coupled MPI and emulation workloads, <strong>where</strong> a job's ranks land relative to each other matters as much as raw node availability. Ranks under the same leaf switch communicate faster than ranks that cross the spine, so topology-aware placement is a real performance lever.</p>
+<h3>LSF mechanisms</h3>
+<ul>
+<li><strong>Compute units.</strong> Define your leaf switches or racks as compute units (<code>COMPUTE_UNIT_TYPES</code> in <code>lsb.params</code>, members in <code>lsb.hosts</code>). Jobs can then request locality with <code>bsub -R "cu[type=switch:maxcus=1]"</code>, or use <code>span[]</code> to control how slots spread across hosts.</li>
+<li><strong>Pre-execution health checks.</strong> A queue-level <code>PRE_EXEC</code> (or <code>bsub -E</code>) runs on the selected execution host before the job starts. Check HCA/port state and error counters there; a non-zero exit makes LSF requeue the job instead of letting it fail at MPI init. (<code>esub</code> runs at submission time, before a host is chosen, so it suits request validation rather than per-host fabric checks.)</li>
+<li><strong>elim scripts.</strong> An external LIM can report custom fabric-health resources (port state, error counters, link speed) into LSF's load information, so hosts with a bad fabric link can be excluded through resource requirements or closed automatically. This is the same pattern as feeding any other hardware health into an elim.</li>
+</ul>
+<h3>Slurm equivalents</h3>
+<ul>
+<li><strong><code>topology.conf</code></strong> with <code>TopologyPlugin=topology/tree</code> describes the switch hierarchy, and <code>--switches=N@max-wait</code> asks for a job to land under a limited number of leaf switches.</li>
+<li><strong>Prolog and <code>HealthCheckProgram</code></strong> (often NHC) can check HCA state and drain nodes with fabric faults.</li>
+</ul>
+<h3>The diagnostic order for fabric-suspect failures</h3>
+<p>Job failures that look like "random MPI init failures" or "hangs at startup" are very often <strong>fabric-layer problems</strong>: a bad HCA, a marginal cable, SM routing that hasn't converged, or RoCE congestion. Once scheduler configuration is ruled out, investigate in this order:</p>
+<ol>
+<li><strong>Local HCA and port state</strong> on the hosts involved (<code>ibstat</code>, <code>mlxlink</code>, <code>ethtool -S</code>).</li>
+<li><strong>Error counters:</strong> symbol errors, link flaps, PFC pause counts, ECN-marked packets.</li>
+<li><strong>Fabric-wide state:</strong> SM logs and routing recalculations (IB), or DCB config consistency across every hop (RoCE).</li>
+<li><strong>Workload pattern:</strong> is it correlated with job size, rank count, or time of day (congestion)?</li>
+<li>Only after all of that, treat it as an application or scheduler bug.</li>
+</ol>
+<blockquote>
+<p><strong>Before production:</strong> verify tool syntax and PFC/DCQCN configuration against your NIC and switch vendor documentation.</p>
+</blockquote></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>
