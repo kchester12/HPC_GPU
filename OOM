@@ -1,0 +1,25 @@
+**Usually no reboot is needed.** The OOM killer exists so the kernel can survive memory exhaustion by killing a process. Once the victim dies and its memory is freed, the kernel is in a normal state. An OOM kill does not taint the kernel or leave it unstable on its own.
+
+The real question is whether the system recovered cleanly, and that depends on what happened during and after the event.
+
+**Cgroup OOM vs. global OOM**
+- **Cgroup OOM:** for example, a Slurm job hitting its `--mem` limit with cgroup enforcement. This is routine. Only that job's cgroup was affected, and the node is fine.
+- **Global OOM:** the whole box ran out of memory. Worth a closer look, because the killer may have picked something you care about, and the node may have thrashed badly before it fired.
+
+**What to check after a global OOM**
+1. **What got killed.** Run `dmesg -T | grep -i -A20 "out of memory"` or `journalctl -k`. If it was a daemon like `sshd`, `slurmd`, `munged`, `sssd`, `systemd-journald`, `dbus`, or `nfsd`, the box may look up but be broken for its purpose. Check `systemctl --failed` and restart what's needed.
+2. **Whether the memory consumer is actually gone.** If something keeps respawning (a runaway service, a user process restarted by a wrapper), you'll just OOM again.
+3. **Processes stuck in D state.** Run `ps -eo stat,pid,cmd | grep '^D'`. Hung tasks, often on NFS or storage I/O that stalled during the pressure, can't be killed. They are a common reason a reboot ends up being the practical fix.
+4. **Kernel-side memory.** Look at `SUnreclaim` in `/proc/meminfo` and run `slabtop`. If unreclaimable slab is huge and not shrinking, you have a kernel or driver leak. Killing user processes can't fix that, so reboot (and investigate the driver or module).
+5. **Kernel errors beyond the OOM itself.** A BUG, oops, soft or hard lockup, `hung_task` warnings, or filesystem errors (XFS shutdown, ext4 remount-ro) in the logs mean you should reboot.
+6. **Fragmentation.** Repeated "page allocation failure: order:N" messages for high-order allocations, despite plenty of free memory, can persist. Try `echo 1 > /proc/sys/vm/compact_memory` first; a reboot clears it if that doesn't help.
+
+**Rule of thumb**
+- The right victim was killed, critical services are up, there are no D-state hangs, no kernel stack traces, and slab looks normal: **leave it running.**
+- Any of the above is off, or you can't confidently verify the node's state: **reboot.** On compute nodes in particular, draining and rebooting is cheap insurance compared to having jobs land on a half-broken node.
+
+**Prevention tips for cluster nodes**
+- Protect key daemons with `OOMScoreAdjust=-1000` in their systemd units (sshd, slurmd, munge).
+- Enforce memory through Slurm cgroups (`ConstrainRAMSpace=yes`) so jobs OOM inside their own cgroup instead of taking down the node.
+- Reserve memory for the OS with `MemSpecLimit` on the node, or a systemd slice limit for user sessions on login nodes.
+- Some sites set `vm.panic_on_oom=1` together with `kernel.panic=10` on compute nodes. A global OOM then becomes an automatic reboot instead of a node in an unknown state. That's a legitimate policy if you'd rather have clean reboots than manual triage.
