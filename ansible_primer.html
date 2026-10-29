@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ansible Primer for HPC Compute Nodes</title>
+<meta name="description" content="A first playbook that installs node_exporter, pushes slurm.conf, and keeps slurmd running, plus how to run it safely on a live cluster.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Ansible Primer for HPC Compute Nodes</h1>
+<p class="sub">A first playbook that installs node_exporter, pushes slurm.conf, and keeps slurmd running, plus how to run it safely on a live cluster.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#the-starting-playbook">The starting playbook</a></li><li><a href="#how-the-pieces-fit">How the pieces fit</a></li><li><a href="#a-minimal-inventory">A minimal inventory</a></li><li><a href="#running-it-safely">Running it safely</a></li><li><a href="#improvements-before-using-it-on-a-live-cluster">Improvements before using it on a live cluster</a></li></ol></nav>
+
+<section class="part" id="the-starting-playbook"><h2>The starting playbook</h2>
+<p>This playbook targets every host in the <code>compute</code> group. It installs Prometheus <code>node_exporter</code>, pushes a shared <code>slurm.conf</code>, and makes sure <code>slurmd</code> is running. If <code>slurm.conf</code> changes, a handler restarts <code>slurmd</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># site.yml</span>
+<span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">hosts</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">compute</span>
+<span class="w">  </span><span class="nt">become</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">vars</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">slurm_conf_src</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">files/slurm.conf</span>
+<span class="w">  </span><span class="nt">tasks</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Install node_exporter</span>
+<span class="w">      </span><span class="nt">ansible.builtin.dnf</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">golang-github-prometheus-node-exporter</span>
+<span class="w">        </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">present</span>
+
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Push slurm.conf</span>
+<span class="w">      </span><span class="nt">ansible.builtin.copy</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">src</span><span class="p">:</span><span class="w"> </span><span class="s">"{{</span><span class="nv"> </span><span class="s">slurm_conf_src</span><span class="nv"> </span><span class="s">}}"</span>
+<span class="w">        </span><span class="nt">dest</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/slurm/slurm.conf</span>
+<span class="w">        </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="s">"0644"</span>
+<span class="w">      </span><span class="nt">notify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restart slurmd</span>
+
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ensure slurmd running</span>
+<span class="w">      </span><span class="nt">ansible.builtin.service</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurmd</span>
+<span class="w">        </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">started</span>
+<span class="w">        </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+
+<span class="w">  </span><span class="nt">handlers</span><span class="p">:</span>
+<span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restart slurmd</span>
+<span class="w">      </span><span class="nt">ansible.builtin.service</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurmd</span>
+<span class="w">        </span><span class="nt">state</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">restarted</span>
+</code></pre></div>
+</section><section class="part" id="how-the-pieces-fit"><h2>How the pieces fit</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Piece</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>hosts: compute</code></td>
+<td>Runs against the <code>compute</code> group in your inventory</td>
+</tr>
+<tr>
+<td><code>become: true</code></td>
+<td>Uses sudo for every task</td>
+</tr>
+<tr>
+<td><code>vars</code></td>
+<td>Values you can reuse; <code>{{ slurm_conf_src }}</code> is replaced at run time</td>
+</tr>
+<tr>
+<td><code>tasks</code></td>
+<td>Run in order on every host; each one describes a <em>desired state</em>, not a command</td>
+</tr>
+<tr>
+<td><code>notify</code> / <code>handlers</code></td>
+<td>A handler runs once at the end of the play, only on hosts where a notifying task reported a change</td>
+</tr>
+</tbody>
+</table></div>
+<p>Because each task describes a state, running the playbook twice is safe. The second run should report <code>ok</code> everywhere and <code>changed=0</code>.</p>
+</section><section class="part" id="a-minimal-inventory"><h2>A minimal inventory</h2>
+<div class="highlight"><pre><span></span><code><span class="c1"># inventory.ini</span>
+<span class="k">[compute]</span>
+<span class="na">node[001</span><span class="o">:</span><span class="s">064]</span>
+
+<span class="k">[controller]</span>
+<span class="na">slurmctl01</span>
+</code></pre></div>
+</section><section class="part" id="running-it-safely"><h2>Running it safely</h2>
+<div class="highlight"><pre><span></span><code>ansible-playbook<span class="w"> </span>-i<span class="w"> </span>inventory.ini<span class="w"> </span>site.yml<span class="w"> </span>--check<span class="w"> </span>--diff<span class="w">     </span><span class="c1"># dry run: show what would change</span>
+ansible-playbook<span class="w"> </span>-i<span class="w"> </span>inventory.ini<span class="w"> </span>site.yml<span class="w"> </span>--limit<span class="w"> </span>node001<span class="w">     </span><span class="c1"># try one node first</span>
+ansible-playbook<span class="w"> </span>-i<span class="w"> </span>inventory.ini<span class="w"> </span>site.yml<span class="w">                     </span><span class="c1"># then everyone</span>
+</code></pre></div>
+</section><section class="part" id="improvements-before-using-it-on-a-live-cluster"><h2>Improvements before using it on a live cluster</h2>
+<ul>
+<li><strong>Start node_exporter too.</strong> The playbook installs it but never enables it. Add a service task for <code>node_exporter</code> with <code>state: started</code> and <code>enabled: true</code>. On Rocky 9 the package comes from EPEL, and names can differ between repos, so confirm with <code>dnf search node-exporter</code>.</li>
+<li>
+<p><strong>Don't restart every slurmd at once.</strong> A handler fires on every host where <code>slurm.conf</code> changed, which can be all of them simultaneously. Add <code>serial: "20%"</code> to the play to roll through nodes in batches. For most config changes, a single <code>scontrol reconfigure</code> on the controller is enough, and you can run that once instead:</p>
+<div class="highlight"><pre><span></span><code><span class="nt">handlers</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reconfigure slurm</span>
+<span class="w">    </span><span class="nt">ansible.builtin.command</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">scontrol reconfigure</span>
+<span class="w">    </span><span class="nt">delegate_to</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">slurmctl01</span>
+<span class="w">    </span><span class="nt">run_once</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</code></pre></div>
+</li>
+<li>
+<p><strong>Push slurm.conf to the controller as well.</strong> Slurm expects the same <code>slurm.conf</code> everywhere. Include the <code>controller</code> group, or use <code>configless</code> Slurm so nodes fetch it from slurmctld.</p>
+</li>
+<li><strong>Set ownership explicitly.</strong> Add <code>owner: root</code> and <code>group: root</code> to the copy task so a stray local file permission doesn't propagate.</li>
+<li><strong>Keep the playbook and <code>files/slurm.conf</code> in git.</strong> Every change to the cluster config then has a history and a rollback.</li>
+</ul></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>

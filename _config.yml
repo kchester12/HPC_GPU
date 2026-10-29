@@ -1,0 +1,26 @@
+# Site settings for GitHub Pages (Jekyll). You normally won't need to edit this file.
+title: HPC Runbooks
+baseurl: /HPC_GPU
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+# Each Markdown file in the _discussions folder becomes its own page
+# at /HPC_GPU/discussions/<file-name>/ and is listed automatically on discussions.html.
+collections:
+  discussions:
+    output: true
+    permalink: /discussions/:name/
+
+defaults:
+  - scope:
+      path: ""
+      type: discussions
+    values:
+      layout: discussion
+
+# Keep raw notes and helper files off the public site.
+exclude:
+  - README.md
+  - DISCUSSION_TEMPLATE.md

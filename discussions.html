@@ -1,0 +1,71 @@
+---
+title: Discussions
+---
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Discussions · HPC Runbooks</title>
+<meta name="description" content="Design discussions on HPC and GPU infrastructure: architecture choices, tradeoffs, and failure modes.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--violet:#b49cff;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:28px 20px 24px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:1100px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(28px,5vw,42px);letter-spacing:-.03em}
+.sub{margin:8px 0 0;color:var(--muted);max-width:720px}
+main{padding:26px 20px 60px}
+.tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+#q{flex:1 1 260px;padding:11px 14px;border-radius:11px;border:1px solid #365b7b;background:#071321;color:var(--text);font-size:15px}
+#q:focus{outline:none;border-color:var(--violet);box-shadow:0 0 0 3px rgba(180,156,255,.15)}
+.tags{display:flex;gap:7px;flex-wrap:wrap}
+.tag{border:1px solid #31516f;background:#112842;color:var(--text);padding:7px 12px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:700}
+.tag.on{background:var(--violet);color:#120b2b;border-color:var(--violet)}
+.list{display:grid;gap:14px}
+.item{display:block;padding:18px 20px;border-radius:15px;border:1px solid #23415f;background:rgba(10,24,41,.88);box-shadow:var(--shadow);color:inherit;text-decoration:none;position:relative;overflow:hidden;transition:border-color .2s,transform .2s}
+.item::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--violet)}
+.item:hover,.item:focus-visible{border-color:var(--violet);transform:translateY(-2px);outline:none}
+.item h2{margin:0 0 5px;font-size:19px}
+.item[hidden]{display:none}
+.item p{margin:0;color:var(--muted)}
+.meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.chip{font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid #2a5678;color:#ccecff;background:#102943}
+.date{font-size:13px;color:var(--muted);margin-right:6px}
+.empty{color:var(--muted);padding:30px 0;text-align:center}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(prefers-reduced-motion:reduce){.item{transition:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="{{ site.baseurl }}/">← All runbooks</a>
+<h1>Discussions</h1>
+<p class="sub">Design questions on HPC and GPU infrastructure: the options, the tradeoffs, and where each approach breaks.</p>
+</div></header>
+<main><div class="wrap">
+<div class="tools">
+<input id="q" type="search" placeholder="Search discussions…" aria-label="Search discussions">
+<div class="tags" id="tags"></div>
+</div>
+<div class="list" id="list">
+{% assign items = site.discussions | sort: "date" | reverse %}{% for d in items %}<a class="item" href="{{ site.baseurl }}{{ d.url }}" data-tags="{{ d.tags | join: '|' }}">
+<h2>{{ d.title }}</h2>
+<p>{{ d.summary }}</p>
+<div class="meta">{% if d.date %}<span class="date">{{ d.date | date: "%b %-d, %Y" }}</span>{% endif %}{% for t in d.tags %}<span class="chip">{{ t }}</span>{% endfor %}</div>
+</a>
+{% endfor %}</div>
+<p class="empty" id="empty" hidden>No discussions match that search.</p>
+</div></main>
+<footer>New discussions appear here automatically when added to the <code>_discussions</code> folder.</footer>
+<script>
+(()=>{const items=[...document.querySelectorAll('.item')],q=document.getElementById('q'),box=document.getElementById('tags'),empty=document.getElementById('empty');let active=null;
+const all=[...new Set(items.flatMap(i=>(i.dataset.tags||'').split('|').filter(Boolean)))].sort();
+all.forEach(t=>{const b=document.createElement('button');b.type='button';b.className='tag';b.textContent=t;b.onclick=()=>{active=active===t?null:t;[...box.children].forEach(x=>x.classList.toggle('on',x.textContent===active));draw()};box.appendChild(b)});
+function draw(){const term=q.value.trim().toLowerCase();let n=0;items.forEach(i=>{const tags=(i.dataset.tags||'').split('|');const ok=(!active||tags.includes(active))&&(!term||i.textContent.toLowerCase().includes(term));i.hidden=!ok;if(ok)n++});empty.hidden=n>0}
+q.addEventListener('input',draw);draw()})();
+</script>
+</body>
+</html>

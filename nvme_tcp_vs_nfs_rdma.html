@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NVMe/TCP vs NFS over RDMA for HPC and EDA</title>
+<meta name="description" content="Block transport versus shared filesystem: how each works, where each fits in an HPC or EDA storage design, and how to troubleshoot them.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#40d9ff;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>NVMe/TCP vs NFS over RDMA for HPC and EDA</h1>
+<p class="sub">Block transport versus shared filesystem: how each works, where each fits in an HPC or EDA storage design, and how to troubleshoot them.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#overview">Overview</a></li><li><a href="#how-nvme-tcp-works">How NVMe/TCP works</a></li><li><a href="#how-nfs-over-rdma-works">How NFS over RDMA works</a></li><li><a href="#the-most-important-difference-block-vs-file">The most important difference: block vs file</a></li><li><a href="#hpc-architecture-view">HPC architecture view</a></li><li><a href="#the-technologies-can-be-complementary">The technologies can be complementary</a></li><li><a href="#why-cpu-overhead-matters-in-hpc">Why CPU overhead matters in HPC</a></li><li><a href="#operational-troubleshooting">Operational troubleshooting</a></li><li><a href="#eda-workload-considerations">EDA workload considerations</a></li><li><a href="#practical-decision-framework">Practical decision framework</a></li><li><a href="#hpc-eda-rule-of-thumb">HPC / EDA rule of thumb</a></li><li><a href="#references">References</a></li></ol></nav>
+
+<section class="part" id="overview"><h2>Overview</h2>
+<p><strong>NVMe/TCP</strong> and <strong>NFS over RDMA</strong> are not direct equivalents. They operate at different layers of the storage stack:</p>
+<ul>
+<li><strong>NVMe/TCP</strong> provides remote <strong>block storage</strong> using NVMe over standard TCP/IP networks.</li>
+<li><strong>NFS over RDMA</strong> provides a shared <strong>file-level filesystem</strong> using NFS semantics over an RDMA transport.</li>
+</ul>
+<p>For HPC and EDA architecture, first decide whether the compute nodes need a shared filesystem or remote block devices. Then choose the appropriate transport and backend architecture.</p>
+</section><section class="part" id="how-nvme-tcp-works"><h2>1. How NVMe/TCP works</h2>
+<p>NVMe/TCP maps NVMe queues, NVMe-oF capsules, commands, completions, and data delivery onto TCP connections.</p>
+<div class="highlight"><pre><span></span><code>Application
+    |
+Filesystem / LVM / storage layer
+    |
+NVMe-oF initiator
+    |
+NVMe/TCP
+    |
+TCP/IP
+    |
+Ethernet
+    |
+NVMe-oF target
+    |
+NVMe SSDs
+</code></pre></div>
+<p>A Linux client typically consumes the exported NVMe namespace as a block device and places the appropriate filesystem or storage layer above it.</p>
+<h3>Why this is attractive</h3>
+<ul>
+<li>Uses standard IP networking.</li>
+<li>Can operate over conventional Ethernet infrastructure.</li>
+<li>Presents block storage rather than a shared NFS namespace.</li>
+<li>Fits environments where remote NVMe storage is needed without making RDMA mandatory for the transport.</li>
+</ul>
+<h3>Important limitation</h3>
+<p>NVMe/TCP itself does <strong>not</strong> provide ordinary shared-file semantics to many independent compute nodes. Do not treat one conventional single-host filesystem on a shared NVMe namespace as if it were NFS. Multi-host access requires a storage/filesystem architecture specifically designed for it.</p>
+</section><section class="part" id="how-nfs-over-rdma-works"><h2>2. How NFS over RDMA works</h2>
+<p>NFS over RDMA retains the NFS filesystem model but uses RDMA for transport.</p>
+<div class="highlight"><pre><span></span><code>Application
+    |
+Linux VFS
+    |
+NFS client
+    |
+RPC/RDMA
+    |
+RDMA NIC
+    |
+RoCE / InfiniBand
+    |
+NFS server
+    |
+Server filesystem
+    |
+Storage
+</code></pre></div>
+<p>This is useful when many compute nodes need the same namespace:</p>
+<div class="highlight"><pre><span></span><code>/projects
+/tools
+/home
+/design
+/scratch
+</code></pre></div>
+<p>RDMA can reduce CPU involvement in data movement and reduce transfer latency compared with a conventional networking path, while NFS still provides the shared filesystem semantics.</p>
+</section><section class="part" id="the-most-important-difference-block-vs-file"><h2>3. The most important difference: block vs file</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Characteristic</th>
+<th>NVMe/TCP</th>
+<th>NFS over RDMA</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Client interface</td>
+<td>Block device</td>
+<td>Shared filesystem</td>
+</tr>
+<tr>
+<td>Protocol model</td>
+<td>NVMe-oF</td>
+<td>NFS</td>
+</tr>
+<tr>
+<td>Transport</td>
+<td>TCP/IP</td>
+<td>RDMA</td>
+</tr>
+<tr>
+<td>Standard Ethernet/IP</td>
+<td>Yes</td>
+<td>Requires an RDMA-capable configuration</td>
+</tr>
+<tr>
+<td>Shared NFS namespace</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>NFS file/locking semantics</td>
+<td>No</td>
+<td>Yes</td>
+</tr>
+<tr>
+<td>Typical role</td>
+<td>Remote block storage / backend</td>
+<td>Compute-facing shared filesystem</td>
+</tr>
+</tbody>
+</table></div>
+<p>The <strong>block-versus-file</strong> distinction is usually more important than the TCP-versus-RDMA distinction.</p>
+</section><section class="part" id="hpc-architecture-view"><h2>4. HPC architecture view</h2>
+<h3>NVMe/TCP as backend block storage</h3>
+<div class="highlight"><pre><span></span><code>Compute / storage host
+        |
+Filesystem or storage service
+        |
+NVMe/TCP initiator
+        |
+IP/Ethernet fabric
+        |
+NVMe target
+        |
+NVMe media
+</code></pre></div>
+<h3>NFS/RDMA as compute-facing shared storage</h3>
+<div class="highlight"><pre><span></span><code>HPC compute nodes
+   |   |   |   |
+   +---+---+---+
+       |
+    NFS/RDMA
+       |
+RDMA fabric
+       |
+NFS servers
+       |
+Filesystem / backend storage
+</code></pre></div>
+<p>The compute nodes continue to work with normal shared files and directories while RDMA changes the transport beneath NFS.</p>
+</section><section class="part" id="the-technologies-can-be-complementary"><h2>5. The technologies can be complementary</h2>
+<p>A useful architecture may combine the two:</p>
+<div class="highlight"><pre><span></span><code>                     HPC / EDA COMPUTE FARM
+
+        node01       node02       node03       nodeNN
+           |            |            |            |
+           +------------+------------+------------+
+                             |
+                         NFS/RDMA
+                             |
+                        RDMA fabric
+                             |
+                 +-----------+-----------+
+                 |                       |
+            NFS Server 1            NFS Server 2
+                 |                       |
+                 +-----------+-----------+
+                             |
+                         Filesystem
+                             |
+                         NVMe/TCP
+                             |
+                       IP/Ethernet
+                             |
+                       NVMe storage
+</code></pre></div>
+<p>In this design:</p>
+<ul>
+<li><strong>NFS/RDMA</strong> handles the compute-facing shared-filesystem protocol and transport.</li>
+<li><strong>NVMe/TCP</strong> can handle block transport between storage servers and an NVMe storage target.</li>
+</ul>
+<p>The two technologies solve separate parts of the I/O path.</p>
+</section><section class="part" id="why-cpu-overhead-matters-in-hpc"><h2>6. Why CPU overhead matters in HPC</h2>
+<p>A compute node may be running large CPU jobs, GPU jobs, EDA simulation, compilation, or preprocessing. CPU cycles spent servicing storage networking compete with application work.</p>
+<p>A simplified path is:</p>
+<div class="highlight"><pre><span></span><code>Storage
+   |
+Network
+   |
+CPU / memory
+   |
+Application
+</code></pre></div>
+<p>NFS over RDMA becomes interesting when an RDMA infrastructure already exists and CPU overhead or data-transfer latency is important.</p>
+<p>NVMe/TCP has a different operational advantage: it runs over the familiar TCP/IP stack and existing Ethernet designs.</p>
+</section><section class="part" id="operational-troubleshooting"><h2>7. Operational troubleshooting</h2>
+<h3>NVMe/TCP layers</h3>
+<div class="highlight"><pre><span></span><code>Application / filesystem
+        |
+NVMe subsystem
+        |
+NVMe/TCP
+        |
+TCP/IP
+        |
+NIC
+        |
+Ethernet switches
+        |
+NVMe target
+</code></pre></div>
+<p>Useful Linux checks:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># NVMe-oF view (nvme-cli)</span>
+nvme<span class="w"> </span>list
+nvme<span class="w"> </span>list-subsys<span class="w">            </span><span class="c1"># controllers, paths, and their state</span>
+nvme<span class="w"> </span>discover<span class="w"> </span>-t<span class="w"> </span>tcp<span class="w"> </span>-a<span class="w"> </span>&lt;target-ip&gt;<span class="w"> </span>-s<span class="w"> </span><span class="m">8009</span>
+cat<span class="w"> </span>/sys/class/nvme-subsystem/*/iopolicy<span class="w">   </span><span class="c1"># native multipath policy</span>
+
+<span class="c1"># Network path</span>
+ip<span class="w"> </span>addr<span class="p">;</span><span class="w"> </span>ip<span class="w"> </span>route<span class="p">;</span><span class="w"> </span>ip<span class="w"> </span>link
+ss<span class="w"> </span>-tin<span class="w"> </span>dst<span class="w"> </span>&lt;target-ip&gt;<span class="w">     </span><span class="c1"># TCP retransmits and RTT per connection</span>
+ethtool<span class="w"> </span>-S<span class="w"> </span>&lt;interface&gt;<span class="w">      </span><span class="c1"># drops, pause frames</span>
+tcpdump<span class="w"> </span>-i<span class="w"> </span>&lt;interface&gt;<span class="w"> </span>port<span class="w"> </span><span class="m">4420</span>
+</code></pre></div>
+<p>Also check the target's own health and logs. NVMe/TCP uses port 4420 for I/O and 8009 for discovery by default.</p>
+<h3>NFS/RDMA layers</h3>
+<div class="highlight"><pre><span></span><code>Application
+    |
+NFS client
+    |
+RPC/RDMA
+    |
+RDMA subsystem
+    |
+RoCE / InfiniBand
+    |
+NIC
+    |
+Switch fabric
+    |
+NFS server
+</code></pre></div>
+<p>The administrator needs visibility into both NFS and the RDMA fabric:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Client: confirm the mount really uses RDMA (proto=rdma, port 20049)</span>
+mount<span class="w"> </span>-t<span class="w"> </span>nfs4<span class="w"> </span>-o<span class="w"> </span><span class="nv">proto</span><span class="o">=</span>rdma,port<span class="o">=</span><span class="m">20049</span><span class="w"> </span>server:/export<span class="w"> </span>/mnt
+nfsstat<span class="w"> </span>-m
+grep<span class="w"> </span>-i<span class="w"> </span>rdma<span class="w"> </span>/proc/self/mountstats
+
+<span class="c1"># Server: confirm nfsd listens for RDMA</span>
+cat<span class="w"> </span>/proc/fs/nfsd/portlist<span class="w">   </span><span class="c1"># expect a line like: rdma 20049</span>
+
+<span class="c1"># Fabric</span>
+rdma<span class="w"> </span>link
+ibv_devinfo
+</code></pre></div>
+<p>A common trap is a mount that silently falls back to TCP, or was never RDMA to begin with. Always confirm <code>proto=rdma</code> in <code>nfsstat -m</code>.</p>
+</section><section class="part" id="eda-workload-considerations"><h2>8. EDA workload considerations</h2>
+<p>EDA environments are rarely limited by only raw sequential bandwidth. Workloads can include:</p>
+<ul>
+<li>very large file populations;</li>
+<li>heavy <code>stat()</code>, <code>open()</code>, and <code>close()</code> activity;</li>
+<li>metadata-intensive directory trees;</li>
+<li>temporary and scratch files;</li>
+<li>large databases and result files;</li>
+<li>many concurrent scheduler jobs.</li>
+</ul>
+<p>Therefore, fast NVMe media alone does not guarantee fast EDA application performance.</p>
+<p>Investigate the complete path:</p>
+<div class="highlight"><pre><span></span><code>Application behavior
+        |
+Metadata / filesystem locking
+        |
+Filesystem client
+        |
+Network
+        |
+Storage server CPU / memory
+        |
+Backend protocol
+        |
+Storage controller / filesystem
+        |
+NVMe media
+</code></pre></div>
+<p>Benchmark the workload pattern that resembles production rather than relying only on sequential throughput tests.</p>
+</section><section class="part" id="practical-decision-framework"><h2>9. Practical decision framework</h2>
+<h3>Need a shared filesystem across HPC workers?</h3>
+<p>Start with the compute-facing filesystem requirement:</p>
+<div class="highlight"><pre><span></span><code>NFS/TCP
+NFS/RDMA
+Parallel/distributed filesystem
+</code></pre></div>
+<p>NFS/RDMA is most relevant when NFS semantics are desired and an RDMA-capable infrastructure is available.</p>
+<h3>Need remote block storage?</h3>
+<p>Consider:</p>
+<div class="highlight"><pre><span></span><code>NVMe/TCP
+NVMe/RDMA
+FC/NVMe
+Local NVMe
+</code></pre></div>
+<p>NVMe/TCP is especially interesting when standard Ethernet/IP infrastructure is a design requirement.</p>
+<h3>Need both?</h3>
+<p>Separate the design into two questions:</p>
+<div class="highlight"><pre><span></span><code>COMPUTE-FACING
+NFS/TCP vs NFS/RDMA vs parallel filesystem
+
+STORAGE-FACING
+NVMe/TCP vs NVMe/RDMA vs FC/NVMe vs local NVMe
+</code></pre></div>
+<p>This prevents a misleading direct comparison between a block-storage transport and a shared-filesystem protocol.</p>
+</section><section class="part" id="hpc-eda-rule-of-thumb"><h2>10. HPC / EDA rule of thumb</h2>
+<p>For a Linux HPC or EDA farm:</p>
+<ol>
+<li>Determine whether worker nodes require the same shared namespace.</li>
+<li>Characterize metadata operations, small-file IOPS, large-file bandwidth, concurrency, and latency requirements.</li>
+<li>Decide the compute-facing filesystem architecture.</li>
+<li>Decide the backend block-storage architecture separately.</li>
+<li>Measure CPU, network, metadata, filesystem-server, and media utilization during a representative workload.</li>
+<li>Validate failover, multi-pathing, scheduler behavior, and failure recovery before production deployment.</li>
+</ol>
+<h3>Bottom line</h3>
+<blockquote>
+<p><strong>NVMe/TCP is primarily a remote block-storage transport. NFS over RDMA is a shared filesystem transported over RDMA. In HPC/EDA, they may be alternatives at some architectural boundaries, but they can also be complementary components of the same storage design.</strong></p>
+</blockquote>
+</section><section class="part" id="references"><h2>References</h2>
+<ul>
+<li>NVM Express, <em>NVMe over TCP Transport Specification</em>: https://nvmexpress.org/specification/tcp-transport-specification/</li>
+<li>Red Hat Enterprise Linux 9 documentation, <em>Enabling NFS over RDMA on an NFS server</em>: https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/9/html/configuring_infiniband_and_rdma_networks/enabling-nfs-over-rdma-on-an-nfs-server_configuring-infiniband_and_rdma_networks</li>
+</ul></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>
