@@ -1,6 +1,6 @@
 ---
 title: "Turning Mixed GPU Capacity into a Platform People Can Trust"
-date: 2026-10-28
+
 tags: [GPU, Architecture, Isolation, Provisioning]
 summary: "Owned and rented GPUs, none of them uniform: how to choose bare metal, VM, or container, rebuild remote machines, isolate tenants, and run it all as one platform."
 ---
