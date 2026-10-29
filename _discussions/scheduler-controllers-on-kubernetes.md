@@ -1,6 +1,6 @@
 ---
 title: "Hosting Slurm and LSF Controllers on Kubernetes: What's the Gap?"
-date: 2026-10-28
+
 tags: [Kubernetes, Slurm, LSF, High Availability]
 summary: "Using Kubernetes only to keep slurmctld or the LSF master alive sounds simple. Here's where that model breaks, and what works in practice."
 ---
