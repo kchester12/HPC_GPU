@@ -1,6 +1,6 @@
 ---
 title: "What's Your Model for Owned and Rented GPU Capacity?"
-date: 2026-10-28
+
 tags: [GPU, Architecture, Operations, Cloud]
 summary: "A GPU label hides almost everything that matters in production. What to abstract, what to keep visible, and how to operate hardware you can't touch and capacity you don't own."
 ---
