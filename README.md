@@ -1,6 +1,7 @@
 # HPC Runbooks
+Study notes and runbooks for Linux HPC and infrastructure operations: job schedulers, GPUs, RDMA fabrics, storage, and the incidents in between.
 
-Practical, field-tested workflows for Linux HPC and infrastructure operations: GPUs, job schedulers, RDMA fabrics, storage, and the incidents in between.
+Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-day HPC operations work with LSF, Slurm, and Grid Engine. The NCCL, InfiniBand/RoCE, MIG, and NVSwitch pages are study notes built from vendor documentation, not claims of production experience on those systems.. Check vendor and scheduler documentation before changing production setting
 
 **Live site:** https://kchester12.github.io/HPC_GPU/
 
