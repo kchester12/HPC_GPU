@@ -1,0 +1,1235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slurm GPU and RDMA Observability with Prometheus and Grafana</title>
+<meta name="description" content="A design for monitoring GPU nodes, Slurm jobs, Linux hosts, and RoCEv2 fabrics from one Job ID–driven Grafana workflow.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#40d9ff;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc ol.plain{list-style:none;padding-left:0}nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+section.part img{display:block;max-width:100%;height:auto;margin:14px 0;border:1px solid #23425f;border-radius:12px}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Slurm GPU and RDMA Observability with Prometheus and Grafana</h1>
+<p class="sub">A design for monitoring GPU nodes, Slurm jobs, Linux hosts, and RoCEv2 fabrics from one Job ID–driven Grafana workflow.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol class="plain"><li><a href="#the-question-this-answers">The question this answers</a></li><li><a href="#objectives">1. Objectives</a></li><li><a href="#rdma-and-rocev2-distilled">2. RDMA and RoCEv2 distilled</a></li><li><a href="#recommended-observability-stack">3. Recommended observability stack</a></li><li><a href="#deployment-phases">4. Deployment phases</a></li><li><a href="#rdma-exporter-design">5. RDMA exporter design</a></li><li><a href="#rdma-metrics">6. RDMA metrics</a></li><li><a href="#slurm-job-correlation-design">7. Slurm job correlation design</a></li><li><a href="#gpu-to-job-mapping">8. GPU-to-job mapping</a></li><li><a href="#prometheus-joins-and-recording-rules">9. Prometheus joins and recording rules</a></li><li><a href="#grafana-job-investigator-dashboard">10. Grafana Job Investigator dashboard</a></li><li><a href="#alerting-design">11. Alerting design</a></li><li><a href="#active-rdma-probes">12. Active RDMA probes</a></li><li><a href="#logs-with-loki">13. Logs with Loki</a></li><li><a href="#validation-plan">14. Validation plan</a></li><li><a href="#operational-checklist">15. Operational checklist</a></li><li><a href="#key-design-rules">16. Key design rules</a></li><li><a href="#references">17. References</a></li><li><a href="#adapting-this-design">18. Adapting this design</a></li></ol></nav>
+
+<section class="part" id="the-question-this-answers"><h2>The question this answers</h2>
+<blockquote>
+<p>Is a slow job limited by the GPU, CPU, memory, Slurm allocation, RDMA NIC, or Ethernet fabric?</p>
+</blockquote>
+<p><img alt="Grafana Slurm Job Investigator concept" src="grafana-slurm-job-investigator.png" /></p>
+<blockquote>
+<p><strong>Note:</strong> The dashboard image uses synthetic sample data. Names, values, events, and job identifiers are illustrative.</p>
+</blockquote>
+</section><section class="part" id="objectives"><h2>1. Objectives</h2>
+<p>Build one observability system that can:</p>
+<ul>
+<li>Show GPU fleet health and utilization.</li>
+<li>Identify allocated but idle GPUs.</li>
+<li>Correlate GPU behavior with Slurm jobs.</li>
+<li>Show CPU, memory, load, filesystem, and network behavior on allocated nodes.</li>
+<li>Detect RDMA transport errors and link problems.</li>
+<li>Distinguish normal congestion-control activity from sustained PFC pressure.</li>
+<li>Correlate PFC, ECN, CNP, throughput, GPU utilization, and job events on one timeline.</li>
+<li>Provide a Job ID driven troubleshooting workflow.</li>
+<li>Preserve Slurm accounting as the source of truth for historical job metadata.</li>
+<li>Avoid high-cardinality Prometheus designs.</li>
+</ul>
+<p>Desired drill-down:</p>
+<div class="highlight"><pre><span></span><code>Cluster
+  -&gt; Slurm job
+    -&gt; allocated nodes
+      -&gt; allocated GPU or MIG UUIDs
+        -&gt; RDMA interfaces and ports
+          -&gt; metrics, events, and logs
+</code></pre></div>
+</section><section class="part" id="rdma-and-rocev2-distilled"><h2>2. RDMA and RoCEv2 distilled</h2>
+<h3>2.1 What RDMA provides</h3>
+<p>RDMA allows data movement between application memory and the NIC with less kernel and CPU involvement than a conventional TCP path.</p>
+<div class="highlight"><pre><span></span><code>TCP:
+Application -&gt; kernel/TCP -&gt; NIC -&gt; network -&gt; NIC -&gt; kernel/TCP -&gt; application
+
+RDMA:
+Application -&gt; NIC ============================&gt; NIC -&gt; memory
+</code></pre></div>
+<p>Expected benefits:</p>
+<ul>
+<li>Lower latency</li>
+<li>Lower CPU overhead</li>
+<li>High throughput</li>
+<li>Better suitability for distributed GPU communication</li>
+</ul>
+<h3>2.2 RoCEv2</h3>
+<p>RoCEv2 carries RDMA over Ethernet, IP, and UDP. The standard destination UDP port is <code>4791</code>.</p>
+<div class="highlight"><pre><span></span><code>Application or NCCL
+        |
+    RDMA verbs
+        |
+      RoCEv2
+        |
+ NVIDIA/Mellanox NIC
+        |
+ Routed Ethernet fabric
+</code></pre></div>
+<p>Typical GPU communication path:</p>
+<div class="highlight"><pre><span></span><code>NCCL
+  -&gt; GPUDirect RDMA
+    -&gt; RoCEv2
+      -&gt; Ethernet fabric
+</code></pre></div>
+<h3>2.3 Why packet handling matters</h3>
+<p>Traditional RoCE deployments are sensitive to packet loss. A practical fabric commonly combines:</p>
+<ul>
+<li><strong>ECN:</strong> Switch marks congestion before queues overflow.</li>
+<li><strong>CNP:</strong> Congestion Notification Packets relay congestion feedback.</li>
+<li><strong>DCQCN:</strong> Sender reduces its rate in response to congestion.</li>
+<li><strong>PFC:</strong> Priority Flow Control pauses one traffic priority as an emergency protection mechanism.</li>
+</ul>
+<p>Operational model:</p>
+<div class="highlight"><pre><span></span><code>ECN + CNP + DCQCN = normal congestion control
+PFC               = emergency brake
+</code></pre></div>
+<p>A healthy fabric should not depend on continuous PFC.</p>
+<h3>2.4 DSCP and traffic classes</h3>
+<p>A routed RoCEv2 design can use DSCP to classify RDMA traffic into a switch traffic class and lossless priority.</p>
+<div class="highlight"><pre><span></span><code>RoCE packet
+  -&gt; DSCP value
+    -&gt; switch traffic class
+      -&gt; queue
+        -&gt; ECN and selected PFC priority
+</code></pre></div>
+<p>Keep broadcast and multicast traffic out of the lossless RDMA class.</p>
+<h3>2.5 Important failure modes</h3>
+<h4>PFC propagation</h4>
+<p>A congested or malfunctioning endpoint can generate pause frames that propagate upstream and affect unrelated systems.</p>
+<h4>PFC deadlock</h4>
+<p>Circular pause dependencies can prevent multiple ports from transmitting. Careful traffic-class design, topology controls, watchdogs, and validated switch behavior are required.</p>
+<h4>Slow receiver</h4>
+<p>A host or NIC that cannot drain receive traffic quickly enough can fill buffers and generate PFC even if the wider fabric is not overloaded.</p>
+<h4>RDMA livelock or retry behavior</h4>
+<p>A busy network or NIC does not guarantee useful application progress. Monitor transport errors, retries, latency, and application throughput together.</p>
+<h4>Bad endpoint or NIC</h4>
+<p>One malfunctioning NIC may issue excessive pause frames. Enable NIC and switch PFC watchdog functionality where supported.</p>
+</section><section class="part" id="recommended-observability-stack"><h2>3. Recommended observability stack</h2>
+<div class="highlight"><pre><span></span><code>GPU / compute nodes
++---------------------------------------------------+
+| DCGM Exporter        GPU telemetry                |
+| node_exporter        CPU, RAM, disk, Linux NICs   |
+| RDMA collector       RoCE, PFC, ECN, CNP, errors |
+| Slurm GPU mapper     Job -&gt; GPU UUID mapping      |
++---------------------------+-----------------------+
+                            |
+                            v
+                       Prometheus
+                            |
+             +--------------+--------------+
+             |                             |
+          Grafana                      Alertmanager
+             |
+             +-- Loki for logs and event correlation
+</code></pre></div>
+<h3>Components</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>NVIDIA DCGM Exporter</td>
+<td>GPU utilization, memory, power, temperature, clocks, ECC, XID, profiling, throttling</td>
+</tr>
+<tr>
+<td>node_exporter</td>
+<td>CPU, RAM, load, filesystems, Linux network, textfile metrics</td>
+</tr>
+<tr>
+<td>Custom RDMA collector</td>
+<td>RDMA links, counters, PFC, ECN, CNP, errors, discards</td>
+</tr>
+<tr>
+<td>Slurm job mapper</td>
+<td>Current job, node, GPU, and MIG allocation metadata</td>
+</tr>
+<tr>
+<td>Prometheus</td>
+<td>Time-series collection, joins, recording rules, alert evaluation</td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td>Cluster, job, GPU, node, and fabric investigation dashboards</td>
+</tr>
+<tr>
+<td>Alertmanager</td>
+<td>Routing and grouping actionable alerts</td>
+</tr>
+<tr>
+<td>Loki</td>
+<td><code>slurmd</code>, kernel, NVIDIA, mlx5, and NCCL logs</td>
+</tr>
+<tr>
+<td>SlurmDBD</td>
+<td>Long-term Slurm job accounting and metadata source of truth</td>
+</tr>
+</tbody>
+</table></div>
+<p>Do not begin with an oversized platform. A strong first version is:</p>
+<div class="highlight"><pre><span></span><code>DCGM Exporter + node_exporter + RDMA textfile collector
++ Prometheus + Grafana + Alertmanager
+</code></pre></div>
+<p>Add Loki after numerical metrics and labels are stable.</p>
+</section><section class="part" id="deployment-phases"><h2>4. Deployment phases</h2>
+<h3>Phase 1: GPU and Linux monitoring</h3>
+<p>Deploy:</p>
+<ul>
+<li>DCGM Exporter</li>
+<li>node_exporter</li>
+<li>Prometheus</li>
+<li>Grafana</li>
+</ul>
+<p>Deliver:</p>
+<ul>
+<li>GPU fleet overview</li>
+<li>GPU health and utilization</li>
+<li>CPU and memory correlation</li>
+</ul>
+<h3>Phase 2: Slurm job-to-node correlation</h3>
+<p>Deploy a central Slurm polling collector.</p>
+<p>Deliver:</p>
+<ul>
+<li>Job selector</li>
+<li>Job summary</li>
+<li>Allocated node filtering</li>
+<li>Running and completing job visibility</li>
+</ul>
+<h3>Phase 3: RDMA and RoCE collection</h3>
+<p>Deploy the RDMA textfile collector to one H100 node and one H200 node first.</p>
+<p>Deliver:</p>
+<ul>
+<li>RDMA throughput</li>
+<li>Link state</li>
+<li>Errors and discards</li>
+<li>PFC by priority</li>
+<li>ECN and CNP</li>
+</ul>
+<p>Validate metric mappings because mlx5 driver and firmware counter names vary.</p>
+<h3>Phase 4: Job-to-GPU UUID correlation</h3>
+<p>Deploy:</p>
+<ul>
+<li>Slurm Prolog mapper</li>
+<li>Slurm Epilog cleanup or archival hook</li>
+<li>GPU index, PCI ID, UUID, and MIG UUID mapping</li>
+</ul>
+<p>Deliver:</p>
+<ul>
+<li>Accurate per-job GPU panels</li>
+<li>Allocated but idle GPU detection</li>
+<li>GPU imbalance views</li>
+</ul>
+<h3>Phase 5: Alerts and active probes</h3>
+<p>Add:</p>
+<ul>
+<li>Collector failure alerts</li>
+<li>Port-down alerts</li>
+<li>New RDMA error alerts</li>
+<li>Sustained PFC alerts</li>
+<li>Idle allocated GPU alerts</li>
+<li>RDMA latency canaries</li>
+</ul>
+<h3>Phase 6: Logs</h3>
+<p>Add Loki and collect:</p>
+<ul>
+<li><code>slurmd</code></li>
+<li>kernel journal</li>
+<li>mlx5/NIC messages</li>
+<li>NVIDIA driver messages</li>
+<li>NCCL warnings and errors</li>
+<li>OOM events</li>
+</ul>
+</section><section class="part" id="rdma-exporter-design"><h2>5. RDMA exporter design</h2>
+<h3>5.1 Initial implementation</h3>
+<p>Use the node_exporter textfile collector instead of building a long-running exporter first.</p>
+<div class="highlight"><pre><span></span><code>/usr/local/sbin/rdma-prom-collector
+       |
+       +-- rdma link show
+       +-- rdma statistic show
+       +-- ethtool -S &lt;netdev&gt;
+       +-- /sys/class/infiniband/*/ports/*/counters/*
+       +-- /sys/class/infiniband/*/ports/*/hw_counters/*
+       |
+       v
+/var/lib/node_exporter/textfile_collector/rdma.prom
+</code></pre></div>
+<p>Run every 15 seconds initially. Read counters only. Do not run bandwidth load tests on this schedule.</p>
+<h3>5.2 Atomic output</h3>
+<p>Never write the live <code>.prom</code> file in place.</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+
+<span class="nv">out</span><span class="o">=</span>/var/lib/node_exporter/textfile_collector/rdma.prom
+<span class="nv">tmp</span><span class="o">=</span><span class="k">$(</span>mktemp<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">out</span><span class="si">}</span><span class="s2">.XXXXXX"</span><span class="k">)</span>
+<span class="nb">trap</span><span class="w"> </span><span class="s1">'rm -f "$tmp"'</span><span class="w"> </span>EXIT
+
+collect_metrics<span class="w"> </span>&gt;<span class="w"> </span><span class="s2">"</span><span class="nv">$tmp</span><span class="s2">"</span>
+mv<span class="w"> </span>-f<span class="w"> </span><span class="s2">"</span><span class="nv">$tmp</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$out</span><span class="s2">"</span>
+<span class="nb">trap</span><span class="w"> </span>-<span class="w"> </span>EXIT
+</code></pre></div>
+<h3>5.3 systemd service</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># /etc/systemd/system/rdma-prom-collector.service</span>
+<span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">Collect RDMA and RoCE metrics for node_exporter</span>
+<span class="na">After</span><span class="o">=</span><span class="s">network-online.target</span>
+<span class="na">Wants</span><span class="o">=</span><span class="s">network-online.target</span>
+
+<span class="k">[Service]</span>
+<span class="na">Type</span><span class="o">=</span><span class="s">oneshot</span>
+<span class="na">ExecStart</span><span class="o">=</span><span class="s">/usr/local/sbin/rdma-prom-collector</span>
+<span class="na">User</span><span class="o">=</span><span class="s">root</span>
+<span class="na">Group</span><span class="o">=</span><span class="s">root</span>
+</code></pre></div>
+<h3>5.4 systemd timer</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># /etc/systemd/system/rdma-prom-collector.timer</span>
+<span class="k">[Unit]</span>
+<span class="na">Description</span><span class="o">=</span><span class="s">Run RDMA Prometheus collector</span>
+
+<span class="k">[Timer]</span>
+<span class="na">OnBootSec</span><span class="o">=</span><span class="s">30s</span>
+<span class="na">OnUnitActiveSec</span><span class="o">=</span><span class="s">15s</span>
+<span class="na">AccuracySec</span><span class="o">=</span><span class="s">2s</span>
+<span class="na">Persistent</span><span class="o">=</span><span class="s">true</span>
+
+<span class="k">[Install]</span>
+<span class="na">WantedBy</span><span class="o">=</span><span class="s">timers.target</span>
+</code></pre></div>
+<p>Enable:</p>
+<div class="highlight"><pre><span></span><code>systemctl<span class="w"> </span>daemon-reload
+systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>rdma-prom-collector.timer
+systemctl<span class="w"> </span>status<span class="w"> </span>rdma-prom-collector.timer
+</code></pre></div>
+<h3>5.5 Collector health metrics</h3>
+<p>Always expose measurement health:</p>
+<div class="highlight"><pre><span></span><code>rdma_collector_success 1
+rdma_collector_duration_seconds 0.083
+rdma_collector_last_success_timestamp_seconds 1794001280
+rdma_collector_parse_errors_total 0
+</code></pre></div>
+<p>Missing metrics must not look like zero errors.</p>
+<h3>5.6 Label design</h3>
+<p>Use stable, low-cardinality labels:</p>
+<div class="highlight"><pre><span></span><code>cluster
+node
+instance
+device
+port
+netdev
+priority
+rail
+</code></pre></div>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code>roce_pfc_received_frames_total{
+  cluster="gpu-prod",
+  node="h100x4a",
+  device="mlx5_0",
+  port="1",
+  netdev="ens8f0np0",
+  priority="3",
+  rail="compute"
+} 18231
+</code></pre></div>
+<p>Do not add volatile labels such as <code>job_name</code>, <code>command</code>, or full job metadata to every infrastructure metric.</p>
+</section><section class="part" id="rdma-metrics"><h2>6. RDMA metrics</h2>
+<h3>6.1 Port state</h3>
+<p>Prefer readable one-hot state metrics:</p>
+<div class="highlight"><pre><span></span><code>rdma_port_state_info{device="mlx5_0",port="1",state="ACTIVE"} 1
+rdma_port_physical_state_info{device="mlx5_0",port="1",state="LINK_UP"} 1
+</code></pre></div>
+<h3>6.2 Traffic counters</h3>
+<p>Expose monotonically increasing counters:</p>
+<div class="highlight"><pre><span></span><code>rdma_port_transmit_bytes_total
+rdma_port_receive_bytes_total
+rdma_port_transmit_packets_total
+rdma_port_receive_packets_total
+rdma_unicast_transmit_packets_total
+rdma_unicast_receive_packets_total
+</code></pre></div>
+<blockquote>
+<p><strong>Units trap:</strong> the sysfs counters <code>port_xmit_data</code> and <code>port_rcv_data</code> count in units of <strong>4 bytes</strong>, not bytes. Multiply by 4 in the collector before exporting them as <code>*_bytes_total</code>, or every bandwidth panel reads 4× low. The <code>rdma statistic</code> and <code>ethtool -S</code> byte counters (for example <code>tx_bytes_phy</code>) are already in bytes.</p>
+</blockquote>
+<p>Compute bandwidth in Prometheus:</p>
+<div class="highlight"><pre><span></span><code><span class="kr">rate</span><span class="o">(</span><span class="nv">rdma_port_transmit_bytes_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">8</span>
+</code></pre></div>
+<h3>6.3 Transport and link errors</h3>
+<p>Map available adapter fields into stable metric names:</p>
+<div class="highlight"><pre><span></span><code>rdma_receive_errors_total
+rdma_transmit_discards_total
+rdma_receive_discards_total
+rdma_local_link_integrity_errors_total
+rdma_symbol_errors_total
+rdma_link_downed_total
+rdma_excessive_buffer_overrun_errors_total
+rdma_out_of_sequence_packets_total
+rdma_duplicate_request_packets_total
+rdma_retry_exceeded_errors_total
+rdma_rnr_nak_retry_errors_total
+</code></pre></div>
+<p>Do not expose only raw driver counter names. Maintain a translation layer per tested driver or firmware family.</p>
+<h3>6.4 PFC by priority</h3>
+<div class="highlight"><pre><span></span><code>roce_pfc_transmitted_frames_total{priority="3"}
+roce_pfc_received_frames_total{priority="3"}
+roce_pfc_transmitted_duration_seconds_total{priority="3"}
+roce_pfc_received_duration_seconds_total{priority="3"}
+</code></pre></div>
+<p>Keep priorities separate so misclassification is visible.</p>
+<p>Useful PromQL:</p>
+<div class="highlight"><pre><span></span><code><span class="kr">rate</span><span class="o">(</span><span class="nv">roce_pfc_received_frames_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="kr">increase</span><span class="o">(</span><span class="nv">roce_pfc_received_duration_seconds_total</span><span class="p">[</span><span class="s">10m</span><span class="p">]</span><span class="o">)</span>
+</code></pre></div>
+<p>Pause duration is often more meaningful than the frame count alone.</p>
+<h3>6.5 ECN and CNP</h3>
+<p>Normalize supported counters:</p>
+<div class="highlight"><pre><span></span><code>roce_ecn_marked_packets_total
+roce_cnp_transmitted_packets_total
+roce_cnp_received_packets_total
+roce_congestion_events_total
+</code></pre></div>
+<p>Interpretation:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Observation</th>
+<th>Likely meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ECN and CNP rising, no drops</td>
+<td>Congestion control is reacting</td>
+</tr>
+<tr>
+<td>PFC rising continuously</td>
+<td>Queues are reaching emergency thresholds</td>
+</tr>
+<tr>
+<td>Drops, retry errors, or timeouts rising</td>
+<td>Transport is being affected</td>
+</tr>
+<tr>
+<td>PFC rising across unrelated ports</td>
+<td>Possible pause propagation or PFC storm</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="slurm-job-correlation-design"><h2>7. Slurm job correlation design</h2>
+<p>The correlation layer must answer:</p>
+<div class="highlight"><pre><span></span><code>Job ID
+  -&gt; owner and state
+  -&gt; start and end time
+  -&gt; allocated nodes
+  -&gt; allocated CPU, memory, and GPUs
+  -&gt; GPU or MIG UUIDs
+  -&gt; matching host and RDMA metrics
+</code></pre></div>
+<p>Use separate paths for current and historical jobs.</p>
+<h3>7.1 Current jobs</h3>
+<p>Poll the Slurm controller or a monitoring host every 15 to 30 seconds.</p>
+<p>Example discovery command:</p>
+<div class="highlight"><pre><span></span><code>squeue<span class="w"> </span>--noheader<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--states<span class="o">=</span>RUNNING,COMPLETING<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--Format<span class="o">=</span>JobIDRaw,UserName,Partition,NodeList,StartTime,TimeUsed
+</code></pre></div>
+<p>Retrieve detailed allocation data when needed:</p>
+<div class="highlight"><pre><span></span><code>scontrol<span class="w"> </span>show<span class="w"> </span>job<span class="w"> </span>-o<span class="w"> </span>&lt;jobid&gt;
+</code></pre></div>
+<p>Useful fields:</p>
+<div class="highlight"><pre><span></span><code>JobId
+UserId
+JobState
+Partition
+QOS
+NodeList
+BatchHost
+StartTime
+EndTime
+TresPerNode
+TresPerJob
+AllocTRES
+Gres
+</code></pre></div>
+<h3>7.2 Current job metrics</h3>
+<div class="highlight"><pre><span></span><code>slurm_job_info{
+  job_id="482937",
+  user="jdoe",
+  partition="gpu",
+  qos="normal",
+  state="RUNNING"
+} 1
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>slurm_job_node_info{
+  job_id="482937",
+  node="h100x4a"
+} 1
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>slurm_job_allocated_gpus{job_id="482937"} 4
+slurm_job_allocated_cpus{job_id="482937"} 64
+slurm_job_allocated_memory_bytes{job_id="482937"} 274877906944
+</code></pre></div>
+<h3>7.3 Completed jobs</h3>
+<p>Use <code>sacct</code> and SlurmDBD for durable job history:</p>
+<div class="highlight"><pre><span></span><code>sacct<span class="w"> </span>-X<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--starttime<span class="w"> </span>today<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--state<span class="o">=</span>COMPLETED,FAILED,CANCELLED,TIMEOUT,OUT_OF_MEMORY<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="o">=</span>JobIDRaw,User,Partition,State,NodeList,AllocTRES,Start,End,Elapsed
+</code></pre></div>
+<p>Recommended ownership:</p>
+<ul>
+<li>SlurmDBD and its database remain the authoritative job history.</li>
+<li>Prometheus stores numeric job-time measurements and short-lived correlation metadata.</li>
+<li>Grafana queries Slurm accounting through a controlled data source or small metadata API when long-term detail is needed.</li>
+</ul>
+<p>Prometheus is not a relational job database.</p>
+</section><section class="part" id="gpu-to-job-mapping"><h2>8. GPU-to-job mapping</h2>
+<h3>8.1 Required translation</h3>
+<div class="highlight"><pre><span></span><code>Slurm allocation
+  -&gt; local GPU index
+    -&gt; PCI bus ID
+      -&gt; physical GPU UUID
+        -&gt; DCGM metric
+</code></pre></div>
+<p>For MIG:</p>
+<div class="highlight"><pre><span></span><code>Job
+  -&gt; node
+    -&gt; parent GPU UUID
+      -&gt; GPU instance
+        -&gt; compute instance
+          -&gt; MIG UUID
+</code></pre></div>
+<h3>8.2 Prolog mapper</h3>
+<p>Use a node-side Slurm Prolog, or later a SPANK plugin, to collect the following. (A controller-side alternative for job start/end events is on the <a href="slurm_gpu_job_tagging.html">GPU job tagging hooks</a> page.)</p>
+<div class="highlight"><pre><span></span><code>SLURM_JOB_ID
+SLURM_JOB_USER
+SLURM_JOB_GPUS
+SLURM_STEP_GPUS
+CUDA_VISIBLE_DEVICES
+</code></pre></div>
+<p>Map device indexes to stable identifiers:</p>
+<div class="highlight"><pre><span></span><code>nvidia-smi<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--query-gpu<span class="o">=</span>index,uuid,pci.bus_id<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--format<span class="o">=</span>csv,noheader,nounits
+</code></pre></div>
+<p>Write a node-local map:</p>
+<div class="highlight"><pre><span></span><code>/run/slurm-gpu-map/482937.map
+</code></pre></div>
+<p>Example record:</p>
+<div class="highlight"><pre><span></span><code>job_id=482937
+node=h100x4a
+gpu_index=0
+gpu_uuid=GPU-3b5...
+pci_bus_id=00000000:81:00.0
+</code></pre></div>
+<p>Expose:</p>
+<div class="highlight"><pre><span></span><code>slurm_job_gpu_info{
+  job_id="482937",
+  node="h100x4a",
+  gpu_uuid="GPU-3b5..."
+} 1
+</code></pre></div>
+<h3>8.3 Epilog behavior</h3>
+<p>At job completion:</p>
+<ol>
+<li>Send or preserve the final mapping for historical analysis if required.</li>
+<li>Remove the active textfile mapping.</li>
+<li>Record cleanup success or failure.</li>
+</ol>
+<p>Do not leave stale active-job mappings.</p>
+<h3>8.4 MIG considerations</h3>
+<p>If MIG is possible, design for <code>mig_uuid</code> now. Do not depend only on parent GPU index or UUID.</p>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code>slurm_job_mig_info{
+  job_id="482937",
+  node="h100x4a",
+  gpu_uuid="GPU-...",
+  mig_uuid="MIG-GPU-.../GI.../CI..."
+} 1
+</code></pre></div>
+</section><section class="part" id="prometheus-joins-and-recording-rules"><h2>9. Prometheus joins and recording rules</h2>
+<h3>9.1 RDMA traffic for a selected job</h3>
+<p>Use the same <code>node</code> label in both metric families.</p>
+<div class="highlight"><pre><span></span><code><span class="kr">rate</span><span class="o">(</span><span class="nv">rdma_port_transmit_bytes_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span>
+<span class="ow">and</span><span class="w"> </span><span class="k">on</span><span class="o">(</span><span class="nv">node</span><span class="o">)</span>
+<span class="nv">slurm_job_node_info</span><span class="p">{</span><span class="nl">job_id</span><span class="o">=</span><span class="p">"</span><span class="s">$job_id</span><span class="p">"}</span>
+</code></pre></div>
+<h3>9.2 GPU utilization for a selected job</h3>
+<div class="highlight"><pre><span></span><code><span class="kr">avg_over_time</span><span class="o">(</span><span class="nv">DCGM_FI_DEV_GPU_UTIL</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span>
+<span class="ow">and</span><span class="w"> </span><span class="k">on</span><span class="o">(</span><span class="nv">node</span><span class="p">,</span><span class="w"> </span><span class="nv">gpu_uuid</span><span class="o">)</span>
+<span class="nv">slurm_job_gpu_info</span><span class="p">{</span><span class="nl">job_id</span><span class="o">=</span><span class="p">"</span><span class="s">$job_id</span><span class="p">"}</span>
+</code></pre></div>
+<p>DCGM Exporter labels GPUs as <code>UUID</code> and <code>Hostname</code> (plus <code>gpu</code> for the index), not <code>gpu_uuid</code> and <code>node</code>. Add Prometheus relabeling (or <code>label_replace</code>) so both metric families share the same label names; otherwise these joins silently return nothing.</p>
+<h3>9.3 Allocated but idle GPUs</h3>
+<div class="highlight"><pre><span></span><code><span class="o">(</span>
+<span class="w">  </span><span class="kr">avg_over_time</span><span class="o">(</span><span class="nv">DCGM_FI_DEV_GPU_UTIL</span><span class="p">[</span><span class="s">15m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10</span>
+<span class="o">)</span>
+<span class="ow">and</span><span class="w"> </span><span class="k">on</span><span class="o">(</span><span class="nv">node</span><span class="p">,</span><span class="w"> </span><span class="nv">gpu_uuid</span><span class="o">)</span>
+<span class="nv">slurm_job_gpu_info</span>
+</code></pre></div>
+<p>Require persistence and exclude startup, checkpoint, interactive, and maintenance periods.</p>
+<h3>9.4 Recording rules</h3>
+<div class="highlight"><pre><span></span><code><span class="nt">groups</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rdma-recording</span>
+<span class="w">    </span><span class="nt">interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">30s</span>
+<span class="w">    </span><span class="nt">rules</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">record</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node:rdma_tx_bits_per_second:rate5m</span>
+<span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rate(rdma_port_transmit_bytes_total[5m]) * 8</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">record</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node:rdma_rx_bits_per_second:rate5m</span>
+<span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rate(rdma_port_receive_bytes_total[5m]) * 8</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">record</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node:roce_pfc_rx_frames:rate5m</span>
+<span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rate(roce_pfc_received_frames_total[5m])</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">record</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node:roce_cnp_rx:rate5m</span>
+<span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rate(roce_cnp_received_packets_total[5m])</span>
+
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">record</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">node:rdma_errors:increase5m</span>
+<span class="w">        </span><span class="nt">expr</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
+<span class="w">          </span><span class="no">increase(rdma_receive_errors_total[5m])</span>
+<span class="w">          </span><span class="no">+ increase(rdma_transmit_discards_total[5m])</span>
+</code></pre></div>
+<p>Recording rules simplify Grafana panels and reduce repeated expensive joins.</p>
+</section><section class="part" id="grafana-job-investigator-dashboard"><h2>10. Grafana Job Investigator dashboard</h2>
+<h3>10.1 Dashboard variables</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Example</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>$cluster</code></td>
+<td><code>gpu-prod</code></td>
+<td>Select cluster</td>
+</tr>
+<tr>
+<td><code>$job_id</code></td>
+<td><code>482937</code></td>
+<td>Primary investigation key</td>
+</tr>
+<tr>
+<td><code>$node</code></td>
+<td><code>All</code></td>
+<td>Allocated-node filter</td>
+</tr>
+<tr>
+<td><code>$gpu_uuid</code></td>
+<td><code>All</code></td>
+<td>Physical GPU filter</td>
+</tr>
+<tr>
+<td><code>$mig_uuid</code></td>
+<td><code>All</code></td>
+<td>Optional MIG filter</td>
+</tr>
+<tr>
+<td><code>$rdma_device</code></td>
+<td><code>All</code></td>
+<td>RDMA adapter filter</td>
+</tr>
+<tr>
+<td><code>$priority</code></td>
+<td><code>3</code></td>
+<td>RoCE PFC priority</td>
+</tr>
+</tbody>
+</table></div>
+<p>Variable flow:</p>
+<div class="highlight"><pre><span></span><code>cluster
+  -&gt; running or historical job
+    -&gt; allocated nodes
+      -&gt; allocated GPUs or MIG devices
+        -&gt; RDMA interfaces
+</code></pre></div>
+<h3>10.2 Dashboard initial view</h3>
+<p>Keep these rows expanded:</p>
+<ol>
+<li>Job Summary</li>
+<li>GPU Utilization</li>
+<li>RDMA Health</li>
+<li>GPU and RDMA Correlation</li>
+</ol>
+<p>Keep deeper diagnostic rows collapsed by default.</p>
+<h3>10.3 Row 1: Job Summary</h3>
+<p>Use Stat panels.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Panel</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Job</td>
+<td><code>482937</code>, <code>RUNNING</code></td>
+</tr>
+<tr>
+<td>User</td>
+<td><code>jdoe</code></td>
+</tr>
+<tr>
+<td>Runtime</td>
+<td><code>02:37:18</code></td>
+</tr>
+<tr>
+<td>Nodes</td>
+<td><code>2</code></td>
+</tr>
+<tr>
+<td>GPUs</td>
+<td><code>8</code></td>
+</tr>
+<tr>
+<td>CPUs</td>
+<td><code>128</code></td>
+</tr>
+<tr>
+<td>RAM</td>
+<td><code>512 GB</code></td>
+</tr>
+<tr>
+<td>Partition / QoS</td>
+<td><code>gpu-h100 / normal</code></td>
+</tr>
+<tr>
+<td>Job name</td>
+<td><code>llama3-train</code></td>
+</tr>
+<tr>
+<td>Job health</td>
+<td><code>GOOD</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Do not present an unexplained numeric health score. Use explicit states:</p>
+<div class="highlight"><pre><span></span><code>GOOD
+GPU IDLE
+GPU IMBALANCE
+CPU BOTTLENECK
+GPU THROTTLED
+RDMA CONGESTION
+RDMA ERROR
+GPU ERROR
+</code></pre></div>
+<h3>10.4 Row 2: GPU Utilization</h3>
+<h4>GPU utilization by device</h4>
+<ul>
+<li>Visualization: Time series</li>
+<li>One line per allocated GPU</li>
+<li>Unit: percent</li>
+<li>Threshold hints: below 10%, 10% to 50%, above 50%</li>
+</ul>
+<p>These are investigation hints, not universal health limits.</p>
+<h4>Average GPU utilization</h4>
+<ul>
+<li>Visualization: Gauge or Stat</li>
+<li>Use the selected job and selected time range</li>
+</ul>
+<h4>GPU memory utilization</h4>
+<ul>
+<li>Visualization: Bar gauge</li>
+<li>One row per GPU</li>
+</ul>
+<h4>GPU memory used</h4>
+<ul>
+<li>Visualization: Bar gauge</li>
+<li>Unit: GiB</li>
+<li>Show used versus total memory</li>
+</ul>
+<h3>10.5 Row 3: GPU Compute Efficiency</h3>
+<p>Use time-series panels:</p>
+<ul>
+<li>SM activity</li>
+<li>Tensor activity, when the field is supported and collected</li>
+<li>DRAM activity</li>
+<li>GPU power</li>
+<li>Optional PCIe and NVLink throughput</li>
+</ul>
+<p>Interpretation examples:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Pattern</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>High SM, moderate DRAM, high power</td>
+<td>Compute-heavy workload</td>
+</tr>
+<tr>
+<td>Moderate SM, high DRAM</td>
+<td>Memory-bandwidth-heavy workload</td>
+</tr>
+<tr>
+<td>Low SM, low DRAM, low power</td>
+<td>GPU may be starved or waiting</td>
+</tr>
+<tr>
+<td>High utilization with throttling</td>
+<td>Investigate power, thermal, or clock limits</td>
+</tr>
+</tbody>
+</table></div>
+<h3>10.6 Row 4: Host Health</h3>
+<p>Panels:</p>
+<ul>
+<li>CPU utilization by allocated node</li>
+<li>Normalized load average</li>
+<li>Available and used memory</li>
+<li>Swap activity</li>
+<li>Filesystem throughput or data volume I/O when relevant</li>
+</ul>
+<p>Interpretation panel:</p>
+<div class="highlight"><pre><span></span><code>GPU low + CPU high -&gt; possible CPU bottleneck
+GPU low + CPU low  -&gt; check storage, data pipeline, synchronization, or RDMA
+GPU high + CPU high -&gt; likely active compute workload
+</code></pre></div>
+<h3>10.7 Row 5: RDMA and RoCE</h3>
+<h4>RDMA throughput</h4>
+<ul>
+<li>Visualization: Time series</li>
+<li>Unit: Gb/s</li>
+<li>Show TX and RX per node or port</li>
+</ul>
+<h4>PFC</h4>
+<ul>
+<li>Visualization: Time series</li>
+<li>Show TX and RX frames per second</li>
+<li>Filter or split by PFC priority</li>
+<li>Add pause duration when available</li>
+</ul>
+<h4>ECN and CNP</h4>
+<ul>
+<li>Visualization: Time series</li>
+<li>Show ECN marks, CNP RX, and CNP TX</li>
+</ul>
+<h4>RDMA errors during job</h4>
+<ul>
+<li>Visualization: Stat</li>
+<li>Calculate increases within the selected job range, not lifetime totals</li>
+</ul>
+<h4>PFC by priority</h4>
+<ul>
+<li>Visualization: Table</li>
+<li>Columns: node, interface, priority, RX frames, TX frames, pause duration</li>
+<li>Highlight activity on unexpected priorities</li>
+</ul>
+<h3>10.8 Row 6: GPU and RDMA Correlation</h3>
+<p>Put these signals on the same timeline:</p>
+<ul>
+<li>Average GPU utilization</li>
+<li>RDMA throughput</li>
+<li>PFC</li>
+<li>ECN and CNP</li>
+<li>RDMA errors</li>
+<li>Optional CPU utilization</li>
+</ul>
+<p>A useful pattern is:</p>
+<div class="highlight"><pre><span></span><code>PFC rises
+  -&gt; CNP rises
+    -&gt; RDMA throughput drops
+      -&gt; GPU utilization drops
+</code></pre></div>
+<p>Add a Key Events table showing timestamped state changes.</p>
+<h3>10.9 Row 7: GPU Hardware Health</h3>
+<p>Use a table:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Node</th>
+<th>GPU</th>
+<th style="text-align: right;">Temperature</th>
+<th style="text-align: right;">Power</th>
+<th style="text-align: right;">XID</th>
+<th style="text-align: right;">ECC</th>
+<th>Throttle</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>h100x4a</td>
+<td>GPU0</td>
+<td style="text-align: right;">67 C</td>
+<td style="text-align: right;">612 W</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td>None</td>
+</tr>
+</tbody>
+</table></div>
+<p>Highlight any new XID event during the job in red. Show current or recent throttle reason as text.</p>
+<h3>10.10 Row 8: Allocation Efficiency</h3>
+<p>Stat panels:</p>
+<ul>
+<li>Allocated GPUs</li>
+<li>Active GPUs</li>
+<li>Average utilization</li>
+<li>Lowest-utilized GPU</li>
+<li>Maximum utilization</li>
+<li>Minimum utilization</li>
+<li>Max-minus-min imbalance</li>
+</ul>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code>Allocated: 8
+Active:    6 / 8
+Average:   71%
+Lowest:    GPU 6 at 4.7%
+Max/Min:   96% / 5%
+Delta:     91 percentage points
+</code></pre></div>
+<h3>10.11 Row 9: Node by GPU Heatmap</h3>
+<p>Rows:</p>
+<div class="highlight"><pre><span></span><code>h100x4a / GPU0
+h100x4a / GPU1
+h100x4a / GPU2
+h100x4a / GPU3
+h100x4b / GPU0
+h100x4b / GPU1
+h100x4b / GPU2
+h100x4b / GPU3
+</code></pre></div>
+<p>Columns represent time. Color represents GPU utilization.</p>
+<p>This quickly exposes a single stalled GPU or rank.</p>
+<h3>10.12 Row 10: Job Events and Logs</h3>
+<p>After Loki is available, show one ordered stream:</p>
+<div class="highlight"><pre><span></span><code>12:31:07 slurmd  Job 482937 started
+12:31:16 nvidia  GPUs initialized
+12:31:44 NCCL    Communicator initialized
+12:47:03 mlx5    PFC pause frames increased
+12:47:05 NCCL    Timeout warning
+12:48:11 slurmd  Job step failed
+</code></pre></div>
+<p>Filter logs using:</p>
+<div class="highlight"><pre><span></span><code>job_id
+node
+gpu_uuid
+mig_uuid
+</code></pre></div>
+<h3>10.13 Recommended visualization types</h3>
+<p>Use mostly:</p>
+<ul>
+<li>Stat</li>
+<li>Time series</li>
+<li>State timeline</li>
+<li>Heatmap</li>
+<li>Table</li>
+<li>Bar gauge</li>
+</ul>
+<p>Avoid excessive pie charts, donut charts, and decorative gauges. The dashboard is a fault-isolation tool.</p>
+</section><section class="part" id="alerting-design"><h2>11. Alerting design</h2>
+<p>Use symptom-based and correlated alerts rather than alerting on every raw counter.</p>
+<h3>11.1 Collector failure</h3>
+<div class="highlight"><pre><span></span><code><span class="nv">rdma_collector_success</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>Initial hold time: 2 minutes.</p>
+<h3>11.2 Stale collector</h3>
+<div class="highlight"><pre><span></span><code><span class="kr">time</span><span class="o">()</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nv">rdma_collector_last_success_timestamp_seconds</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">120</span>
+</code></pre></div>
+<h3>11.3 RDMA port inactive</h3>
+<div class="highlight"><pre><span></span><code><span class="nv">rdma_port_state_info</span><span class="p">{</span><span class="nl">state</span><span class="o">=</span><span class="p">"</span><span class="s">ACTIVE</span><span class="p">"}</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>This only works if the collector exports <strong>every</strong> possible state with a 0 or 1 value. If it exports only the current state, the <code>ACTIVE</code> series simply disappears when a port goes down, and a <code>!= 1</code> or <code>== 0</code> rule never fires. Either export all states, or alert on absence:</p>
+<div class="highlight"><pre><span></span><code><span class="k">count</span><span class="w"> </span><span class="k">by</span><span class="w"> </span><span class="o">(</span><span class="nv">node</span><span class="p">,</span><span class="w"> </span><span class="nv">device</span><span class="p">,</span><span class="w"> </span><span class="nv">port</span><span class="o">)</span><span class="w"> </span><span class="o">(</span><span class="nv">rdma_port_state_info</span><span class="o">)</span>
+<span class="ow">unless</span><span class="w"> </span><span class="k">on</span><span class="w"> </span><span class="o">(</span><span class="nv">node</span><span class="p">,</span><span class="w"> </span><span class="nv">device</span><span class="p">,</span><span class="w"> </span><span class="nv">port</span><span class="o">)</span>
+<span class="nv">rdma_port_state_info</span><span class="p">{</span><span class="nl">state</span><span class="o">=</span><span class="p">"</span><span class="s">ACTIVE</span><span class="p">"}</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span>
+</code></pre></div>
+<p>Alert immediately for active production GPU nodes, but suppress expected maintenance.</p>
+<h3>11.4 New transport errors</h3>
+<div class="highlight"><pre><span></span><code><span class="kr">increase</span><span class="o">(</span><span class="nv">rdma_receive_errors_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">0</span>
+</code></pre></div>
+<p>Also evaluate retry, RNR, discard, link-down, and integrity counters that are meaningful for the installed adapter.</p>
+<h3>11.5 PFC storm</h3>
+<p>Initial example only:</p>
+<div class="highlight"><pre><span></span><code><span class="kr">rate</span><span class="o">(</span><span class="nv">roce_pfc_received_frames_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">100</span>
+</code></pre></div>
+<p>Combine with pause duration when possible:</p>
+<div class="highlight"><pre><span></span><code><span class="kr">increase</span><span class="o">(</span><span class="nv">roce_pfc_received_duration_seconds_total</span><span class="p">[</span><span class="s">5m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">1</span>
+</code></pre></div>
+<p>Do not treat these example values as universal thresholds. Baseline representative NCCL workloads and set warning/critical thresholds from observed normal behavior, such as sustained levels beyond the normal 95th or 99th percentile.</p>
+<h3>11.6 Allocated GPU idle</h3>
+<p>Concept:</p>
+<div class="highlight"><pre><span></span><code><span class="kr">avg_over_time</span><span class="o">(</span><span class="nv">DCGM_FI_DEV_GPU_UTIL</span><span class="p">[</span><span class="s">30m</span><span class="p">]</span><span class="o">)</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">10</span>
+</code></pre></div>
+<p>Join against active GPU allocation metadata.</p>
+<p>Exclude:</p>
+<ul>
+<li>Job age below 10 minutes</li>
+<li>Interactive or development partitions</li>
+<li>Known test jobs</li>
+<li>Checkpoint or data-staging phases</li>
+<li>Maintenance reservations</li>
+</ul>
+<h3>11.7 GPU imbalance</h3>
+<p>Alert when one GPU remains far below peers in the same multi-GPU job. Example starting rule:</p>
+<div class="highlight"><pre><span></span><code>max GPU utilization - min GPU utilization &gt; 50 percentage points
+for 15 minutes
+</code></pre></div>
+<p>Tune by workload class.</p>
+<h3>11.8 Correlated congestion alert</h3>
+<p>High-value condition:</p>
+<div class="highlight"><pre><span></span><code>running multi-node GPU job
+AND sustained PFC or CNP elevation
+AND RDMA throughput reduction
+AND GPU utilization reduction
+</code></pre></div>
+<p>This is more actionable than PFC alone.</p>
+<h3>11.9 GPU hardware alerts</h3>
+<p>Alert on:</p>
+<ul>
+<li>New XID errors</li>
+<li>Uncorrectable ECC errors</li>
+<li>Repeated correctable ECC growth</li>
+<li>Thermal throttling</li>
+<li>Persistent power throttling when unexpected</li>
+<li>GPU disappearance or DCGM scrape failure</li>
+</ul>
+</section><section class="part" id="active-rdma-probes"><h2>12. Active RDMA probes</h2>
+<p>Passive counters do not prove end-to-end RDMA functionality.</p>
+<p>Add lightweight active latency probes between selected node pairs or fabric zones:</p>
+<div class="highlight"><pre><span></span><code>h100x4a &lt;-&gt; h100x4b
+h100x4a &lt;-&gt; h200x8a
+h100x4b &lt;-&gt; h200x8b
+</code></pre></div>
+<p>Record:</p>
+<div class="highlight"><pre><span></span><code>rdma_probe_success
+rdma_probe_rtt_seconds
+rdma_probe_failures_total
+</code></pre></div>
+<p>Guidelines:</p>
+<ul>
+<li>Use small probes for regular health testing.</li>
+<li>Keep test traffic lightweight.</li>
+<li>Run heavier <code>ib_write_bw</code>, <code>ib_read_bw</code>, <code>ib_write_lat</code>, or NCCL tests only during scheduled validation windows.</li>
+<li>Do not run continuous full-bandwidth tests from every node.</li>
+</ul>
+<p>A long-term graph should reveal baseline latency and step changes.</p>
+</section><section class="part" id="logs-with-loki"><h2>13. Logs with Loki</h2>
+<p>Prometheus explains <strong>what changed</strong>. Logs often explain <strong>why</strong>.</p>
+<p>Collect:</p>
+<div class="highlight"><pre><span></span><code>slurmd logs
+kernel and journald messages
+NVIDIA XID and driver messages
+mlx5 and RDMA link messages
+NCCL warnings, timeouts, and transport errors
+OOM events
+</code></pre></div>
+<p>Desired timeline:</p>
+<div class="highlight"><pre><span></span><code>14:32 GPU utilization drops
+14:32 PFC RX spikes
+14:32 RDMA throughput drops
+14:32 NCCL timeout appears
+14:33 Slurm job step fails
+</code></pre></div>
+<p>Use consistent labels, but avoid placing full log messages or unbounded values in labels.</p>
+</section><section class="part" id="validation-plan"><h2>14. Validation plan</h2>
+<h3>14.1 Node validation</h3>
+<p>On each representative NIC/driver family:</p>
+<div class="highlight"><pre><span></span><code>rdma<span class="w"> </span>link
+rdma<span class="w"> </span>statistic<span class="w"> </span>show
+ibv_devices
+ibv_devinfo
+ip<span class="w"> </span>-d<span class="w"> </span>link<span class="w"> </span>show
+ethtool<span class="w"> </span>-S<span class="w"> </span>&lt;interface&gt;
+</code></pre></div>
+<p>Confirm:</p>
+<ul>
+<li>RDMA device-to-netdev mapping</li>
+<li>Port number</li>
+<li>Link state</li>
+<li>RoCE mode</li>
+<li>Counter availability</li>
+<li>PFC priority</li>
+<li>ECN and CNP counters</li>
+<li>Counter units and wrap behavior</li>
+</ul>
+<h3>14.2 Prometheus validation</h3>
+<p>Check:</p>
+<div class="highlight"><pre><span></span><code>node_exporter target is UP
+RDMA collector success is 1
+RDMA metric timestamps are current
+counter values increase under traffic
+no duplicate series
+labels are consistent across node, DCGM, and Slurm metrics
+</code></pre></div>
+<h3>14.3 Slurm validation</h3>
+<p>Test:</p>
+<ol>
+<li>Single-node, one-GPU job</li>
+<li>Single-node, all-GPU job</li>
+<li>Multi-node NCCL job</li>
+<li>Failed job</li>
+<li>Cancelled job</li>
+<li>OOM job</li>
+<li>GPU-exclusive and shared modes</li>
+<li>MIG allocation, if enabled</li>
+</ol>
+<p>Verify that Prolog and Epilog mappings are created and removed correctly.</p>
+<h3>14.4 Network validation</h3>
+<p>Progress gradually:</p>
+<div class="highlight"><pre><span></span><code>Two nodes
+  -&gt; small GPU test cluster
+    -&gt; one ToR
+      -&gt; multiple ToRs and leaf
+        -&gt; wider production fabric
+</code></pre></div>
+<p>At each stage validate:</p>
+<ul>
+<li>MTU consistency</li>
+<li>DSCP-to-traffic-class mapping</li>
+<li>PFC limited to the selected RDMA class</li>
+<li>ECN thresholds</li>
+<li>PFC watchdog behavior</li>
+<li>Buffer/headroom behavior</li>
+<li>No broadcast or multicast in the lossless class</li>
+<li>Active RDMA latency and failures</li>
+<li>NCCL throughput and stability</li>
+</ul>
+</section><section class="part" id="operational-checklist"><h2>15. Operational checklist</h2>
+<h3>NIC</h3>
+<div class="highlight"><pre><span></span><code>[ ] RoCEv2 enabled
+[ ] Correct driver and firmware combination
+[ ] Consistent MTU
+[ ] DSCP configured
+[ ] Correct traffic class and PFC priority
+[ ] ECN and congestion control configured
+[ ] PFC watchdog enabled where supported
+[ ] Required PFC, ECN, CNP, and error counters available
+</code></pre></div>
+<h3>Switch</h3>
+<div class="highlight"><pre><span></span><code>[ ] Same MTU end to end
+[ ] DSCP-to-traffic-class mapping validated
+[ ] PFC enabled only for the selected RDMA class
+[ ] ECN thresholds configured and validated
+[ ] Buffer and headroom configuration reviewed
+[ ] PFC watchdog configured
+[ ] Dynamic or shared buffer behavior understood
+[ ] Broadcast and multicast excluded from lossless class
+[ ] Switch telemetry exported to Prometheus or correlated in Grafana
+</code></pre></div>
+<h3>Linux and Slurm</h3>
+<div class="highlight"><pre><span></span><code>[ ] DCGM Exporter running
+[ ] node_exporter running
+[ ] RDMA collector timer running
+[ ] Slurm current-job collector running
+[ ] Prolog creates GPU UUID mapping
+[ ] Epilog archives or removes mapping
+[ ] SlurmDBD accounting healthy
+[ ] Node names are consistent across all metric sources
+</code></pre></div>
+<h3>Grafana</h3>
+<div class="highlight"><pre><span></span><code>[ ] Job ID drives node and GPU variables
+[ ] Metrics are filtered to the job time range
+[ ] Lifetime counters are converted to increases or rates
+[ ] PFC is separated by priority
+[ ] GPU and RDMA signals share a timeline
+[ ] Events and logs use the same node and job filters
+[ ] Dashboard rows are collapsible
+</code></pre></div>
+</section><section class="part" id="key-design-rules"><h2>16. Key design rules</h2>
+<ol>
+<li><strong>Use the Slurm Job ID as the operator entry point.</strong></li>
+<li><strong>Keep GPU and RDMA metrics stable by node and device.</strong></li>
+<li><strong>Keep volatile job metadata in separate mapping metrics.</strong></li>
+<li><strong>Join by consistent <code>node</code>, <code>gpu_uuid</code>, and optional <code>mig_uuid</code> labels.</strong></li>
+<li><strong>Use SlurmDBD for permanent job history.</strong></li>
+<li><strong>Use Prometheus for time-series metrics, not as a relational job database.</strong></li>
+<li><strong>Treat ECN/CNP as normal congestion-control signals and PFC as the emergency brake.</strong></li>
+<li><strong>Monitor PFC duration, priority, scope, and persistence, not only frame counts.</strong></li>
+<li><strong>Baseline before setting PFC or utilization thresholds.</strong></li>
+<li><strong>Investigate new errors during the selected job range, not only device lifetime totals.</strong></li>
+<li><strong>Correlate GPU, CPU, RDMA, network, and logs on the same timeline.</strong></li>
+<li><strong>Deploy gradually from representative nodes to ToR, leaf, and wider fabric.</strong></li>
+<li><strong>Enable watchdogs to limit damage from a bad endpoint or stuck PFC condition.</strong></li>
+<li><strong>Design for MIG UUIDs now if MIG may be introduced later.</strong></li>
+<li><strong>Make dashboards explicit and actionable, not decorative.</strong></li>
+</ol>
+<p>The target operator experience is:</p>
+<div class="highlight"><pre><span></span><code>Enter Job ID
+  -&gt; confirm allocation
+  -&gt; inspect GPU balance
+  -&gt; inspect host pressure
+  -&gt; inspect RDMA throughput and congestion
+  -&gt; inspect hardware errors
+  -&gt; inspect aligned events and logs
+  -&gt; identify the most likely bottleneck
+</code></pre></div>
+</section><section class="part" id="references"><h2>17. References</h2>
+<ul>
+<li>Guo et al., Microsoft Research, <a href="https://www.microsoft.com/en-us/research/?p=317771"><strong>RDMA over Commodity Ethernet at Scale</strong></a>, SIGCOMM 2016. The origin of the DSCP-based PFC, deadlock, livelock, and pause-storm lessons summarized in section 2.</li>
+<li>NVIDIA, <a href="https://docs.nvidia.com/datacenter/cloud-native/gpu-telemetry/latest/">GPU Telemetry documentation</a></li>
+<li>NVIDIA, <a href="https://docs.nvidia.com/datacenter/cloud-native/gpu-telemetry/latest/kube-prometheus.html">Setting up Prometheus for GPU telemetry</a></li>
+<li>Grafana Labs, <a href="https://grafana.com/grafana/plugins/integrationplumbers-nvidiadcgm-app/">NVIDIA DCGM integration</a></li>
+<li>Prometheus, <a href="https://prometheus.io/docs/prometheus/latest/configuration/configuration/">Configuration documentation</a></li>
+<li>Prometheus, <a href="https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/">Recording rules</a></li>
+<li>Slurm, <a href="https://slurm.schedmd.com/squeue.html">squeue documentation</a></li>
+<li>Slurm, <a href="https://slurm.schedmd.com/scontrol.html">scontrol documentation</a></li>
+<li>Slurm, <a href="https://slurm.schedmd.com/sacct.html">sacct documentation</a></li>
+<li>NVIDIA, <a href="https://github.com/NVIDIA/dcgm-exporter">DCGM Exporter repository</a></li>
+<li>Prometheus, <a href="https://github.com/prometheus/node_exporter">node_exporter repository</a></li>
+</ul>
+</section><section class="part" id="adapting-this-design"><h2>18. Adapting this design</h2>
+<p>This design is intended as an operational starting point. Metric names, NIC counters, DCGM fields, Slurm fields, thresholds, and switch behavior must be validated against the exact driver, firmware, Slurm, Grafana, and fabric versions in the deployment.</p></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>
