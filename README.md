@@ -1,7 +1,7 @@
 # HPC Runbooks
 Study notes and runbooks for Linux HPC and infrastructure operations: job schedulers, GPUs, RDMA fabrics, storage, and the incidents in between.
 
-Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-day HPC operations work with LSF, Slurm, and Grid Engine. The NCCL, InfiniBand/RoCE, MIG, and NVSwitch pages are study notes built from vendor documentation, not claims of production experience on those systems.. Check vendor and scheduler documentation before changing production setting
+Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-day HPC operations work with LSF, Slurm, and Grid Engine. The NCCL, InfiniBand/RoCE, MIG, and NVSwitch pages are study notes built from vendor documentation, not claims of production experience on those systems. Check vendor and scheduler documentation before changing production settings.
 
 **Live site:** https://kchester12.github.io/HPC_GPU/
 
@@ -9,6 +9,8 @@ Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-d
 
 | Runbook | What it covers |
 |---|---|
+| [Slurm GPU and RDMA Observability](https://kchester12.github.io/HPC_GPU/slurm_gpu_rdma_observability.html) | Prometheus and Grafana design tying GPU, host, and RoCEv2 metrics to a Slurm Job ID |
+| [Slurm GPU Job Tagging Hooks](https://kchester12.github.io/HPC_GPU/slurm_gpu_job_tagging.html) | Non-blocking controller prolog/epilog scripts that post GPU allocation events to a metrics API |
 | [GPU & CUDA HPC Sysadmin Workflow](https://kchester12.github.io/HPC_GPU/gpu_cuda_hpc_runbook.html) | Bottom-up troubleshooting for Linux GPU nodes, from PCIe and driver up to scheduler isolation and hardware faults |
 | [Slurm GPU Partition Hardening Checklist](https://kchester12.github.io/HPC_GPU/slurm_gpu_hardening.html) | Security checklist for GPU nodes on Rocky Linux 9: isolation, access control, drivers, containers, monitoring, firmware |
 | [NCCL and GPUDirect RDMA](https://kchester12.github.io/HPC_GPU/nccl_gpudirect_rdma.html) | NCCL collectives, GPUDirect RDMA mechanics, and why PCIe topology decides multi-node GPU performance |

@@ -43,7 +43,7 @@ footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
 <body>
 <header><div class="wrap">
 <h1>HPC Runbooks</h1>
-<p class="sub">Practical, field-tested workflows for Linux HPC and infrastructure operations: GPUs, schedulers, storage, and the incidents in between.</p>
+<p class="sub">Study notes and runbooks for Linux HPC and infrastructure operations: job schedulers, GPUs, RDMA fabrics, storage, and the incidents in between.</p>
 <p class="author">By Koushik Chaudhuri · <a href="https://www.linkedin.com/in/koushik-chaudhuri-06211a4">LinkedIn</a></p>
 <a class="disc" href="discussions.html"><b>Discussions</b><span>Design questions and tradeoffs: bare metal vs VM vs container, Slurm/LSF on Kubernetes, and more</span><i>→</i></a>
 </div></header>
@@ -66,6 +66,18 @@ footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
    - soon:  true shows a greyed "Coming soon" card with no link
    ===================================================================== */
 const pages = [
+  {
+    title: "Slurm GPU and RDMA Observability",
+    file:  "slurm_gpu_rdma_observability.html",
+    desc:  "Prometheus and Grafana design that ties GPU, host, and RoCEv2 fabric metrics to a Slurm Job ID: exporters, GPU-to-job mapping, PromQL joins, a job investigator dashboard, and alerts.",
+    tags:  ["Observability", "GPU", "Fabric", "Slurm"],
+  },
+  {
+    title: "Slurm GPU Job Tagging Hooks",
+    file:  "slurm_gpu_job_tagging.html",
+    desc:  "Non-blocking PrologSlurmctld and EpilogSlurmctld scripts that post GPU allocation and release events to a metrics API, and how to run them alongside an existing prolog.",
+    tags:  ["Observability", "Slurm", "Automation"],
+  },
   {
     title: "GPU & CUDA HPC Sysadmin Workflow",
     file:  "gpu_cuda_hpc_runbook.html",

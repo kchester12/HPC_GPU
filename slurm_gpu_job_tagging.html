@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Slurm GPU Job Tagging Hooks</title>
+<meta name="description" content="Two non-blocking PrologSlurmctld and EpilogSlurmctld scripts that post GPU allocation and release events to a metrics API, plus how to deploy them alongside an existing prolog.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc ol.plain{list-style:none;padding-left:0}nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+section.part img{display:block;max-width:100%;height:auto;margin:14px 0;border:1px solid #23425f;border-radius:12px}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Slurm GPU Job Tagging Hooks</h1>
+<p class="sub">Two non-blocking PrologSlurmctld and EpilogSlurmctld scripts that post GPU allocation and release events to a metrics API, plus how to deploy them alongside an existing prolog.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#what-these-do">What these do</a></li><li><a href="#prolog-tag-gpus-at-job-start">Prolog: tag GPUs at job start</a></li><li><a href="#epilog-release-the-tag-at-job-end">Epilog: release the tag at job end</a></li><li><a href="#deploying">Deploying</a></li><li><a href="#if-you-already-have-a-prologslurmctld">If you already have a PrologSlurmctld</a></li></ol></nav>
+
+<section class="part" id="what-these-do"><h2>What these do</h2>
+<p>Two lightweight controller-side scripts tell a metrics API when a job gets GPUs and when it gives them back. Dashboards and cost reports can then tie GPU metrics to jobs without adding job labels to every infrastructure metric.</p>
+<p>They are deliberately <strong>non-blocking</strong>: a tagging failure is logged and ignored, so it never delays job launch or completion.</p>
+<p>This is the controller-side companion to section 8 of the <a href="slurm_gpu_rdma_observability.html">GPU and RDMA observability design</a>.</p>
+<blockquote>
+<p><strong>Controller side vs. node side.</strong> <code>slurmctld</code> runs these on the controller, which usually has no GPUs and can't run <code>nvidia-smi</code>. <code>SLURM_JOB_GPUS</code> gives GPU <strong>indices</strong>, and for a multi-node job those indices don't say which node they belong to. Use these hooks for job-level start and end events. For per-node GPU UUID mapping, use a node-side <code>Prolog</code>, which runs on each allocated node and can see the hardware.</p>
+</blockquote>
+</section><section class="part" id="prolog-tag-gpus-at-job-start"><h2>Prolog: tag GPUs at job start</h2>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env python3</span>
+<span class="sd">"""Slurm PrologSlurmctld: tag GPUs allocated to a job at launch."""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">signal</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">time</span><span class="o">,</span><span class="w"> </span><span class="nn">urllib.request</span>
+
+<span class="n">TAG_API</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GPU_TAG_API"</span><span class="p">,</span> <span class="s2">"http://metrics-api:8080/gpu-tags"</span><span class="p">)</span>
+<span class="n">TIMEOUT</span> <span class="o">=</span> <span class="mf">2.0</span>        <span class="c1"># per network operation</span>
+<span class="n">HARD_LIMIT</span> <span class="o">=</span> <span class="mi">3</span>       <span class="c1"># whole script, in seconds; also covers slow DNS</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">give_up</span><span class="p">(</span><span class="o">*</span><span class="n">_</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"gpu tag: timed out"</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">signal</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGALRM</span><span class="p">,</span> <span class="n">give_up</span><span class="p">)</span>
+    <span class="n">signal</span><span class="o">.</span><span class="n">alarm</span><span class="p">(</span><span class="n">HARD_LIMIT</span><span class="p">)</span>
+
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_ID"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">job_id</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>  <span class="c1"># not a job context</span>
+    <span class="n">gpus</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_GPUS"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span> <span class="k">if</span> <span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"event"</span><span class="p">:</span> <span class="s2">"job_start"</span><span class="p">,</span>
+        <span class="s2">"job_id"</span><span class="p">:</span> <span class="n">job_id</span><span class="p">,</span>
+        <span class="s2">"user"</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_USER"</span><span class="p">),</span>
+        <span class="s2">"partition"</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_PARTITION"</span><span class="p">),</span>
+        <span class="s2">"nodes"</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_NODELIST"</span><span class="p">),</span>
+        <span class="s2">"gpus"</span><span class="p">:</span> <span class="n">gpus</span><span class="p">,</span>
+        <span class="s2">"start_ts_ms"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">TAG_API</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+                                 <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">},</span>
+                                 <span class="n">method</span><span class="o">=</span><span class="s2">"POST"</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">TIMEOUT</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"gpu tag failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>  <span class="c1"># never block launch</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div>
+</section><section class="part" id="epilog-release-the-tag-at-job-end"><h2>Epilog: release the tag at job end</h2>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env python3</span>
+<span class="sd">"""Slurm EpilogSlurmctld: close the GPU tag when the job ends."""</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="o">,</span><span class="w"> </span><span class="nn">os</span><span class="o">,</span><span class="w"> </span><span class="nn">signal</span><span class="o">,</span><span class="w"> </span><span class="nn">sys</span><span class="o">,</span><span class="w"> </span><span class="nn">time</span><span class="o">,</span><span class="w"> </span><span class="nn">urllib.request</span>
+
+<span class="n">TAG_API</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"GPU_TAG_API"</span><span class="p">,</span> <span class="s2">"http://metrics-api:8080/gpu-tags"</span><span class="p">)</span>
+<span class="n">TIMEOUT</span> <span class="o">=</span> <span class="mf">2.0</span>
+<span class="n">HARD_LIMIT</span> <span class="o">=</span> <span class="mi">3</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">give_up</span><span class="p">(</span><span class="o">*</span><span class="n">_</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">"gpu untag: timed out"</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="n">signal</span><span class="o">.</span><span class="n">signal</span><span class="p">(</span><span class="n">signal</span><span class="o">.</span><span class="n">SIGALRM</span><span class="p">,</span> <span class="n">give_up</span><span class="p">)</span>
+    <span class="n">signal</span><span class="o">.</span><span class="n">alarm</span><span class="p">(</span><span class="n">HARD_LIMIT</span><span class="p">)</span>
+
+    <span class="n">job_id</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_ID"</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">job_id</span><span class="p">:</span>
+        <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">gpus</span> <span class="o">=</span> <span class="p">[</span><span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">g</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_GPUS"</span><span class="p">,</span> <span class="s2">""</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">","</span><span class="p">)</span> <span class="k">if</span> <span class="n">g</span><span class="o">.</span><span class="n">strip</span><span class="p">()]</span>
+    <span class="n">payload</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">"event"</span><span class="p">:</span> <span class="s2">"job_end"</span><span class="p">,</span>
+        <span class="s2">"job_id"</span><span class="p">:</span> <span class="n">job_id</span><span class="p">,</span>
+        <span class="s2">"gpus"</span><span class="p">:</span> <span class="n">gpus</span><span class="p">,</span>
+        <span class="s2">"exit_code"</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SLURM_JOB_EXIT_CODE"</span><span class="p">),</span>
+        <span class="s2">"end_ts_ms"</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">()</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">),</span>
+    <span class="p">}</span>
+    <span class="n">req</span> <span class="o">=</span> <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">Request</span><span class="p">(</span><span class="n">TAG_API</span><span class="p">,</span> <span class="n">data</span><span class="o">=</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">payload</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(),</span>
+                                 <span class="n">headers</span><span class="o">=</span><span class="p">{</span><span class="s2">"Content-Type"</span><span class="p">:</span> <span class="s2">"application/json"</span><span class="p">},</span>
+                                 <span class="n">method</span><span class="o">=</span><span class="s2">"POST"</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">urllib</span><span class="o">.</span><span class="n">request</span><span class="o">.</span><span class="n">urlopen</span><span class="p">(</span><span class="n">req</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="n">TIMEOUT</span><span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"gpu untag failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span> <span class="n">file</span><span class="o">=</span><span class="n">sys</span><span class="o">.</span><span class="n">stderr</span><span class="p">)</span>
+    <span class="n">sys</span><span class="o">.</span><span class="n">exit</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="vm">__name__</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+    <span class="n">main</span><span class="p">()</span>
+</code></pre></div>
+<h3>Why the extra timer</h3>
+<p><code>urlopen(timeout=...)</code> limits each socket operation, but not DNS lookup. If the API's hostname stops resolving, a plain <code>urlopen</code> can hang well past two seconds, and <code>slurmctld</code> waits for <code>PrologSlurmctld</code> before launching the job. The <code>SIGALRM</code> limit caps the whole script, so the worst case is a three-second delay, never a stuck launch.</p>
+</section><section class="part" id="deploying"><h2>Deploying</h2>
+<ol>
+<li>Save the scripts as <code>/etc/slurm/prolog_gpu_tag.py</code> and <code>/etc/slurm/epilog_gpu_tag.py</code>.</li>
+<li>Make them executable and readable by the user <code>slurmctld</code> runs as (<code>SlurmUser</code>, usually <code>slurm</code>): <code>chmod 755</code>.</li>
+<li>Confirm the controller can reach the API: <code>curl -s -o /dev/null -w '%{http_code}\n' http://metrics-api:8080/gpu-tags</code>.</li>
+<li>
+<p>Add to <code>slurm.conf</code>:</p>
+<div class="highlight"><pre><span></span><code>PrologSlurmctld=/etc/slurm/prolog_gpu_tag.py
+EpilogSlurmctld=/etc/slurm/epilog_gpu_tag.py
+</code></pre></div>
+</li>
+<li>
+<p>Run <code>scontrol reconfigure</code>, then test with a short job: <code>salloc --gres=gpu:1 sleep 30</code>. Check the API received both events, and check <code>slurmctld.log</code> for "gpu tag failed" lines.</p>
+</li>
+</ol>
+<p><code>PrologFlags=Alloc</code> isn't needed for these. It changes when the node-side <code>Prolog</code> runs, not <code>PrologSlurmctld</code>.</p>
+</section><section class="part" id="if-you-already-have-a-prologslurmctld"><h2>If you already have a PrologSlurmctld</h2>
+<p>Older Slurm releases accept only one script per hook. Newer releases accept a comma-separated list or a glob (for example, a <code>prolog.d/*</code> directory) for some hooks; check the <code>slurm.conf</code> man page for your version. A small wrapper works on every version and keeps concerns separate:</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/bin/bash</span>
+<span class="c1"># /etc/slurm/prolog_slurmctld_wrapper.sh</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+
+<span class="c1"># Existing logic: a non-zero exit here still fails the prolog, as before</span>
+/etc/slurm/your_existing_prolog.sh<span class="w"> </span><span class="s2">"</span><span class="nv">$@</span><span class="s2">"</span>
+
+<span class="c1"># GPU tagger: never allowed to fail the job, even if the file is missing</span>
+/etc/slurm/prolog_gpu_tag.py<span class="w"> </span><span class="s2">"</span><span class="nv">$@</span><span class="s2">"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">true</span>
+</code></pre></div>
+<p>Make a matching <code>epilog_slurmctld_wrapper.sh</code>, then point <code>slurm.conf</code> at the wrappers:</p>
+<div class="highlight"><pre><span></span><code>PrologSlurmctld=/etc/slurm/prolog_slurmctld_wrapper.sh
+EpilogSlurmctld=/etc/slurm/epilog_slurmctld_wrapper.sh
+</code></pre></div>
+<blockquote>
+<p>The <code>|| true</code> matters. Under <code>set -e</code>, a missing or broken tagger would otherwise make <code>PrologSlurmctld</code> exit non-zero, and Slurm requeues or holds the job: exactly the outage these scripts are designed to avoid.</p>
+</blockquote></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>
