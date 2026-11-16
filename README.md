@@ -19,6 +19,8 @@ Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-d
 | [Fairshare and Scheduler Tuning](https://kchester12.github.io/HPC_GPU/job_scheduling_tuning.html) | How LSF, Slurm, and Grid Engine compute fairshare priority and what to tune when delays creep up |
 | [After an OOM Kill: Reboot or Not?](https://kchester12.github.io/HPC_GPU/oom_recovery.html) | Checking whether a node recovered cleanly from an OOM event, and preventing it on cluster nodes |
 | [Ansible Primer for HPC Compute Nodes](https://kchester12.github.io/HPC_GPU/ansible_primer.html) | A first playbook for node_exporter and slurm.conf, and how to run it safely on a live cluster |
+| [How I Run an HPC Cluster](https://kchester12.github.io/HPC_GPU/how-i-run-an-hpc-cluster.html) | End-to-end walkthrough of running an HPC cluster, from job submission through lifecycle and onboarding, built from day-to-day operations work |
+
 
 ## Discussions
 
