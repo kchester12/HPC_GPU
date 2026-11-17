@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Observability with curl: Cheat Sheet</title>
+<meta name="description" content="The handful of curl and jq commands worth knowing by heart for Prometheus, Alertmanager, Grafana, Loki and the OpenTelemetry Collector.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Observability with curl: Cheat Sheet</h1>
+<p class="sub">The handful of curl and jq commands worth knowing by heart for Prometheus, Alertmanager, Grafana, Loki and the OpenTelemetry Collector.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#the-pattern-every-tool-follows">The pattern every tool follows</a></li><li><a href="#six-curl-habits">Six curl habits</a></li><li><a href="#ports">Ports</a></li><li><a href="#prometheus-phttplocalhost9090">Prometheus (P=http://localhost:9090)</a></li><li><a href="#exporter-metrics">Exporter /metrics</a></li><li><a href="#alertmanager-amhttplocalhost9093">Alertmanager (AM=http://localhost:9093)</a></li><li><a href="#grafana-ghttplocalhost3000-token-in-grafana_token">Grafana (G=http://localhost:3000, token in ~/.grafana_token)</a></li><li><a href="#loki-lhttplocalhost3100">Loki (L=http://localhost:3100)</a></li><li><a href="#opentelemetry-collector">OpenTelemetry Collector</a></li><li><a href="#when-something-is-wrong">When something is wrong</a></li><li><a href="#shortcuts">Shortcuts</a></li></ol></nav>
+
+<section class="part"><p>The handful of commands worth knowing by heart. Everything else is in the <a href="curl_observability_reference.html">full tutorial</a>.</p>
+</section><section class="part" id="the-pattern-every-tool-follows"><h2>The pattern every tool follows</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>What</th>
+<th>Where to look</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Is it alive?</td>
+<td><code>/-/healthy</code>, <code>/ready</code>, <code>/api/health</code>, <code>/healthz</code></td>
+</tr>
+<tr>
+<td>What does it measure about itself?</td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>How do I query or manage it?</td>
+<td><code>/api/v1/...</code> or <code>/api/v2/...</code> (JSON, pipe to <code>jq</code>)</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="six-curl-habits"><h2>Six curl habits</h2>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-sS<span class="w">  </span>URL<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.<span class="w">                                   </span><span class="c1"># quiet, but show errors; pretty JSON</span>
+curl<span class="w"> </span>-fsS<span class="w"> </span>URL<span class="w">                                          </span><span class="c1"># fail (non-zero exit) on HTTP &gt;= 400: for scripts</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{http_code} %{time_total}s\n'</span><span class="w"> </span>URL<span class="w">   </span><span class="c1"># status + timing only</span>
+curl<span class="w"> </span>-v<span class="w">   </span>URL<span class="w">                                          </span><span class="c1"># can't connect? see DNS/TCP/TLS/headers</span>
+curl<span class="w"> </span>-sG<span class="w">  </span>URL<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=...'</span><span class="w">             </span><span class="c1"># ALWAYS for PromQL / LogQL</span>
+curl<span class="w"> </span>-sS<span class="w">  </span>-H<span class="w"> </span>@~/.token.hdr<span class="w"> </span>URL<span class="w">                         </span><span class="c1"># auth header from a file, not the command line</span>
+</code></pre></div>
+
+</section><section class="part" id="ports"><h2>Ports</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Prometheus</th>
+<th>Alertmanager</th>
+<th>Pushgateway</th>
+<th>node_exporter</th>
+<th>Grafana</th>
+<th>Loki</th>
+<th>Tempo</th>
+<th>OTel Collector</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>9090</td>
+<td>9093</td>
+<td>9091</td>
+<td>9100</td>
+<td>3000</td>
+<td>3100</td>
+<td>3200</td>
+<td>4317 gRPC / 4318 HTTP / 13133 health</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="prometheus-phttplocalhost9090"><h2>Prometheus (<code>P=http://localhost:9090</code>)</h2>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$P</span>/-/ready<span class="w">                                                     </span><span class="c1"># ready to serve queries?</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/runtimeinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data.reloadConfigSuccess<span class="w">      </span><span class="c1"># did my last config edit apply?</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$P</span>/-/reload<span class="w">                                              </span><span class="c1"># reload (needs --web.enable-lifecycle)</span>
+
+<span class="c1"># which targets are down, and why</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/targets<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.activeTargets[] | select(.health!="up") | "\(.scrapeUrl)  \(.lastError)"'</span>
+
+<span class="c1"># run any PromQL</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up == 0'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[].metric.instance'</span>
+
+<span class="c1"># firing alerts, as Prometheus sees them</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.alerts[] | "\(.state)\t\(.labels.alertname)\t\(.labels.instance)"'</span>
+
+<span class="c1"># top 10 metrics by series count (memory / cardinality problems)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/tsdb<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.seriesCountByMetricName[] | "\(.value)\t\(.name)"'</span>
+</code></pre></div>
+
+</section><section class="part" id="exporter-metrics"><h2>Exporter <code>/metrics</code></h2>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">'^node_load'</span><span class="w">                      </span><span class="c1"># read raw values</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-vc<span class="w"> </span><span class="s1">'^#'</span><span class="w">                          </span><span class="c1"># how many series</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{time_total}s\n'</span><span class="w"> </span>http://node01:9100/metrics<span class="w">       </span><span class="c1"># scrape time vs scrape_timeout</span>
+</code></pre></div>
+
+</section><section class="part" id="alertmanager-amhttplocalhost9093"><h2>Alertmanager (<code>AM=http://localhost:9093</code>)</h2>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.status.state)\t\(.labels.alertname)\t\(.labels.instance)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/silences<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | select(.status.state=="active") | "\(.id)\t\(.endsAt)\t\(.comment)"'</span>
+
+<span class="c1"># 2-hour maintenance silence for one node</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$AM</span>/api/v2/silences<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2">  \"matchers\":[{\"name\":\"instance\",\"value\":\"node01.*\",\"isRegex\":true,\"isEqual\":true}],</span>
+<span class="s2">  \"startsAt\":\"</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>+%FT%TZ<span class="k">)</span><span class="s2">\",\"endsAt\":\"</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>-d<span class="w"> </span><span class="s1">'+2 hours'</span><span class="w"> </span>+%FT%TZ<span class="k">)</span><span class="s2">\",</span>
+<span class="s2">  \"createdBy\":\"</span><span class="nv">$USER</span><span class="s2">\",\"comment\":\"maintenance\"}"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.silenceID
+
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span><span class="nv">$AM</span>/api/v2/silence/&lt;silenceID&gt;<span class="w">                          </span><span class="c1"># expire it</span>
+</code></pre></div>
+
+</section><section class="part" id="grafana-ghttplocalhost3000-token-in-grafana_token"><h2>Grafana (<code>G=http://localhost:3000</code>, token in <code>~/.grafana_token</code>)</h2>
+<div class="highlight"><pre><span></span><code><span class="nv">AUTH</span><span class="o">=</span><span class="s2">"Authorization: Bearer </span><span class="k">$(</span>cat<span class="w"> </span>~/.grafana_token<span class="k">)</span><span class="s2">"</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$G</span>/api/health<span class="w">                                                     </span><span class="c1"># no auth needed</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/datasources<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.uid)\t\(.name)\t\(.url)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$G</span><span class="s2">/api/search?type=dash-db&amp;query=node"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.uid)\t\(.title)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/dashboards/uid/&lt;uid&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.dashboard<span class="w"> </span>&gt;<span class="w"> </span>dash.json<span class="w">   </span><span class="c1"># export / back up</span>
+
+<span class="c1"># annotation on every graph (maintenance, upgrades, reboots)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="nv">$G</span>/api/annotations<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">"{\"time\":</span><span class="k">$(</span>date<span class="w"> </span>+%s%3N<span class="k">)</span><span class="s2">,\"tags\":[\"maintenance\"],\"text\":\"slurmctld upgraded\"}"</span>
+</code></pre></div>
+
+</section><section class="part" id="loki-lhttplocalhost3100"><h2>Loki (<code>L=http://localhost:3100</code>)</h2>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$L</span>/ready
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/labels<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/query_range<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query={job="varlogs"} |= "error"'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'limit=20'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[].values[][1]'</span>
+</code></pre></div>
+
+</section><section class="part" id="opentelemetry-collector"><h2>OpenTelemetry Collector</h2>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsS<span class="w"> </span>http://localhost:13133/<span class="w">                                         </span><span class="c1"># health_check extension</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8888/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'otelcol_(receiver_accepted|exporter_send_failed)'</span>
+</code></pre></div>
+
+</section><section class="part" id="when-something-is-wrong"><h2>When something is wrong</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>First command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Connection refused</td>
+<td><code>curl -v URL</code>, then <code>ss -ltnp | grep PORT</code> on the host</td>
+</tr>
+<tr>
+<td>Hangs / times out</td>
+<td><code>curl -v --connect-timeout 3 URL</code>, then check firewalld</td>
+</tr>
+<tr>
+<td>Target <code>up == 0</code></td>
+<td><code>curl</code> the scrape URL <strong>from the Prometheus host</strong></td>
+</tr>
+<tr>
+<td><code>bad_data: parse error</code></td>
+<td>You forgot <code>-G --data-urlencode</code></td>
+</tr>
+<tr>
+<td>Config change ignored</td>
+<td><code>runtimeinfo</code> → <code>reloadConfigSuccess</code>; <code>promtool check config</code></td>
+</tr>
+<tr>
+<td>Alert fired, no notification</td>
+<td><code>$P/api/v1/alertmanagers</code> → <code>$AM/api/v2/alerts</code> → <code>$AM/api/v2/silences</code></td>
+</tr>
+<tr>
+<td>Grafana "No data"</td>
+<td>Run the same query against the backend directly</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="shortcuts"><h2>Shortcuts</h2>
+<p>Load <a href="scripts/obs-functions.sh"><code>scripts/obs-functions.sh</code></a> in your <code>~/.bashrc</code> to get <code>promq</code>, <code>promdown</code>, <code>promalerts</code>, <code>amalerts</code>, <code>amsilence</code>, <code>lokiq</code>, <code>scrapetime</code> and <code>httpcheck</code>. Run <a href="scripts/obs-check.sh"><code>scripts/obs-check.sh &lt;host&gt;</code></a> for a one-shot health check of the whole stack.</p></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Getting Started: Your Monitoring Stack with curl</title>
+<meta name="description" content="A gentle, step-by-step introduction: ask Prometheus, read raw metrics, query APIs with jq, send a test alert, and turn it into a check script.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Getting Started: Your Monitoring Stack with curl</h1>
+<p class="sub">A gentle, step-by-step introduction: ask Prometheus, read raw metrics, query APIs with jq, send a test alert, and turn it into a check script.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#the-one-idea-behind-all-of-this">The one idea behind all of this</a></li><li><a href="#step-1-ask-prometheus-if-its-alive">Step 1: Ask Prometheus if it's alive</a></li><li><a href="#step-2-get-just-the-status-code">Step 2: Get just the status code</a></li><li><a href="#step-3-when-it-doesnt-work-look-closer-with-v">Step 3: When it doesn't work, look closer with -v</a></li><li><a href="#step-4-look-at-raw-metrics">Step 4: Look at raw metrics</a></li><li><a href="#step-5-find-the-one-number-you-care-about">Step 5: Find the one number you care about</a></li><li><a href="#step-6-talk-to-an-api-and-make-the-answer-readable">Step 6: Talk to an API and make the answer readable</a></li><li><a href="#step-7-pick-out-just-the-part-you-need">Step 7: Pick out just the part you need</a></li><li><a href="#step-8-ask-prometheus-a-question">Step 8: Ask Prometheus a question</a></li><li><a href="#step-9-ask-prometheus-why-something-is-down">Step 9: Ask Prometheus why something is down</a></li><li><a href="#step-10-send-something-not-just-ask">Step 10: Send something, not just ask</a></li><li><a href="#step-11-use-a-login-token-grafana">Step 11: Use a login token (Grafana)</a></li><li><a href="#step-12-turn-it-into-a-simple-check-script">Step 12: Turn it into a simple check script</a></li><li><a href="#what-youve-learned">What you've learned</a></li><li><a href="#where-to-go-next">Where to go next</a></li></ol></nav>
+
+<section class="part"><p>This is a gentle introduction. Each step teaches one idea, shows the command, shows what you should see, and explains the pieces. You don't need to memorize anything. By the end you'll know a pattern that works on almost every monitoring tool.</p>
+<p>When you want the full details later, the <a href="curl_observability_reference.html">complete reference</a> and the <a href="curl_observability_cheatsheet.html">cheat sheet</a> are there.</p>
+<p><strong>What you need:</strong> a Linux machine that can reach your Prometheus server, plus <code>curl</code> and <code>jq</code>.</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>curl<span class="w"> </span>jq
+</code></pre></div>
+
+<blockquote>
+<p>Throughout this guide, replace <code>localhost</code> with your monitoring server's name if you're running the commands from another machine. Sample outputs are trimmed and your numbers will differ.</p>
+</blockquote>
+</section><section class="part" id="the-one-idea-behind-all-of-this"><h2>The one idea behind all of this</h2>
+<p>Monitoring tools like Prometheus, Grafana and Loki are web servers. They don't serve web pages for people, though. They answer questions for other programs over HTTP.</p>
+<p><code>curl</code> lets <strong>you</strong> ask those same questions from the command line. Almost every tool answers three kinds of question:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Typical address</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Are you alive?</td>
+<td><code>/-/healthy</code>, <code>/ready</code>, <code>/api/health</code></td>
+</tr>
+<tr>
+<td>What are your numbers?</td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Can you answer my query?</td>
+<td><code>/api/v1/...</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Once you've seen this pattern a couple of times, you'll recognize it everywhere.</p>
+</section><section class="part" id="step-1-ask-prometheus-if-its-alive"><h2>Step 1: Ask Prometheus if it's alive</h2>
+<p><strong>Why:</strong> This is the simplest possible question, so it's the first thing you check when something seems broken.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>http://localhost:9090/-/healthy
+</code></pre></div>
+
+<p><strong>What you'll see:</strong></p>
+<div class="highlight"><pre><span></span><code>Prometheus Server is Healthy.
+</code></pre></div>
+
+<p>That's it. You sent a request and Prometheus answered in plain text.</p>
+<p>Try the "ready" version too. "Healthy" means the program is running. "Ready" means it has finished starting up and can answer queries.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>http://localhost:9090/-/ready
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>Prometheus Server is Ready.
+</code></pre></div>
+</section><section class="part" id="step-2-get-just-the-status-code"><h2>Step 2: Get just the status code</h2>
+<p><strong>Why:</strong> In scripts you usually don't care about the text. You only want to know whether it worked. Web servers report that with a three-digit <strong>status code</strong>: <code>200</code> means OK, <code>404</code> means not found, <code>500</code>-something means the server had a problem.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{http_code}\n'</span><span class="w"> </span>http://localhost:9090/-/ready
+</code></pre></div>
+
+<p><strong>What you'll see:</strong></p>
+<div class="highlight"><pre><span></span><code>200
+</code></pre></div>
+
+<p><strong>What the pieces mean:</strong></p>
+<ul>
+<li><code>-s</code> stands for silent. It hides curl's progress meter.</li>
+<li><code>-o /dev/null</code> throws the response body away.</li>
+<li><code>-w '%{http_code}\n'</code> prints the status code, followed by a newline.</li>
+</ul>
+</section><section class="part" id="step-3-when-it-doesnt-work-look-closer-with-v"><h2>Step 3: When it doesn't work, look closer with -v</h2>
+<p><strong>Why:</strong> "It doesn't work" can mean many different things. <code>-v</code> (verbose) shows each stage of the conversation, so you can see where it stops.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-v<span class="w"> </span>http://localhost:9090/-/ready
+</code></pre></div>
+
+<p><strong>What you'll see (trimmed):</strong></p>
+<div class="highlight"><pre><span></span><code>*   Trying 127.0.0.1:9090...
+* Connected to localhost (127.0.0.1) port 9090
+&gt; GET /-/ready HTTP/1.1
+&gt; Host: localhost:9090
+&gt;
+&lt; HTTP/1.1 200 OK
+&lt; Content-Type: text/plain; charset=utf-8
+&lt;
+Prometheus Server is Ready.
+</code></pre></div>
+
+<p><strong>How to read it:</strong></p>
+<ul>
+<li>Lines starting with <code>*</code> are curl describing what it's doing.</li>
+<li>Lines starting with <code>&gt;</code> are what <strong>you</strong> sent.</li>
+<li>Lines starting with <code>&lt;</code> are what the <strong>server</strong> sent back.</li>
+</ul>
+<p><strong>Common failures and what they mean:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>You see</th>
+<th>It usually means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Connection refused</code></td>
+<td>Nothing is listening on that port. The service is down, or it's listening on a different address.</td>
+</tr>
+<tr>
+<td>It hangs, then <code>Connection timed out</code></td>
+<td>Something is blocking the traffic, usually a firewall.</td>
+</tr>
+<tr>
+<td><code>HTTP/1.1 401</code> or <code>403</code></td>
+<td>The server is up but wants a login or token.</td>
+</tr>
+<tr>
+<td><code>HTTP/1.1 404</code></td>
+<td>Wrong address (path), or the feature isn't turned on.</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="step-4-look-at-raw-metrics"><h2>Step 4: Look at raw metrics</h2>
+<p><strong>Why:</strong> Prometheus collects numbers by visiting a <code>/metrics</code> page on each machine, which it calls "scraping." node_exporter is the program that publishes those numbers for a Linux server. If you can read the page with curl, Prometheus can too.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-20
+</code></pre></div>
+
+<p><strong>What you'll see (trimmed):</strong></p>
+<div class="highlight"><pre><span></span><code># HELP node_load1 1m load average.
+# TYPE node_load1 gauge
+node_load1 0.42
+# HELP node_memory_MemAvailable_bytes Memory information field MemAvailable_bytes.
+# TYPE node_memory_MemAvailable_bytes gauge
+node_memory_MemAvailable_bytes 1.2345e+11
+</code></pre></div>
+
+<p><strong>How to read it:</strong> each measurement comes in three lines.</p>
+<ul>
+<li><code># HELP</code> is a plain-English description.</li>
+<li><code># TYPE</code> says what kind of number it is. A <strong>gauge</strong> goes up and down, like temperature. A <strong>counter</strong> only goes up, like total bytes sent.</li>
+<li>The last line is the name and the current value.</li>
+</ul>
+<p>Some lines have labels in curly braces. Labels tell apart several versions of the same measurement:</p>
+<div class="highlight"><pre><span></span><code>node_filesystem_avail_bytes{mountpoint="/"} 5.1e+10
+node_filesystem_avail_bytes{mountpoint="/scratch"} 8.7e+12
+</code></pre></div>
+
+<p>The pipe <code>| head -20</code> just shows the first 20 lines, because the full page is long.</p>
+</section><section class="part" id="step-5-find-the-one-number-you-care-about"><h2>Step 5: Find the one number you care about</h2>
+<p><strong>Why:</strong> The metrics page has hundreds of lines. <code>grep</code> filters it down.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">'^node_load'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>node_load1 0.42
+node_load15 0.38
+node_load5 0.40
+</code></pre></div>
+
+<p>The <code>^</code> means "starting with," so this skips the <code># HELP</code> and <code># TYPE</code> lines.</p>
+</section><section class="part" id="step-6-talk-to-an-api-and-make-the-answer-readable"><h2>Step 6: Talk to an API and make the answer readable</h2>
+<p><strong>Why:</strong> The <code>/metrics</code> page is plain text. The <strong>API</strong>, the address where you ask questions, answers in <strong>JSON</strong>: structured text that programs read easily but people don't. <code>jq</code> makes it readable.</p>
+<p>First, without jq:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:9090/api/v1/status/buildinfo
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>{"status":"success","data":{"version":"3.5.0","revision":"...","branch":"HEAD","buildUser":"...","goVersion":"go1.24.4"}}
+</code></pre></div>
+
+<p>Now pipe it through <code>jq .</code>:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:9090/api/v1/status/buildinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="s2">"success"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"version"</span><span class="p">:</span><span class="w"> </span><span class="s2">"3.5.0"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"goVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"go1.24.4"</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>The <code>.</code> means "show me everything, nicely laid out."</p>
+</section><section class="part" id="step-7-pick-out-just-the-part-you-need"><h2>Step 7: Pick out just the part you need</h2>
+<p><strong>Why:</strong> Usually you want one value, not the whole answer. <code>jq</code> can walk into the JSON for you.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:9090/api/v1/status/buildinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.version'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>3.5.0
+</code></pre></div>
+
+<p><strong>What the pieces mean:</strong></p>
+<ul>
+<li><code>.data.version</code> means "go into <code>data</code>, then take <code>version</code>."</li>
+<li><code>-r</code> means "raw": print the text without quotation marks.</li>
+</ul>
+<p>Tip: when you don't know what's inside an answer, <code>jq 'keys'</code> lists the top-level names, and you can explore from there.</p>
+</section><section class="part" id="step-8-ask-prometheus-a-question"><h2>Step 8: Ask Prometheus a question</h2>
+<p><strong>Why:</strong> This is where it gets useful. Prometheus has its own question language called <strong>PromQL</strong>. The simplest question is <code>up</code>: "for every machine you scrape, could you reach it?" <code>1</code> means yes and <code>0</code> means no.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-sG<span class="w"> </span>http://localhost:9090/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up'</span>
+</code></pre></div>
+
+<p><strong>What the new pieces mean:</strong></p>
+<ul>
+<li><code>-G</code> puts the question into the web address, the way a browser search does.</li>
+<li><code>--data-urlencode 'query=up'</code> packages the question safely. PromQL is full of characters like <code>{</code>, <code>"</code> and spaces that would break a web address, and this flag handles them for you. <strong>Always use it for queries.</strong> It prevents the most common beginner error, <code>bad_data: parse error</code>.</li>
+</ul>
+<p>The raw answer is long JSON. Let's make it a simple list:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-sG<span class="w"> </span>http://localhost:9090/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[] | "\(.metric.instance)  \(.value[1])"'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>node01:9100  1
+node02:9100  1
+node03:9100  0
+localhost:9090  1
+</code></pre></div>
+
+<p>node03 is down. You found that without opening Grafana.</p>
+<p>The jq part looks scary, but it says something simple: "for each result, print the instance name, two spaces, then the value."</p>
+<p>Now ask only for what's broken:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-sG<span class="w"> </span>http://localhost:9090/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up == 0'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[].metric.instance'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>node03:9100
+</code></pre></div>
+</section><section class="part" id="step-9-ask-prometheus-why-something-is-down"><h2>Step 9: Ask Prometheus why something is down</h2>
+<p><strong>Why:</strong> <code>up == 0</code> tells you <strong>what</strong> is broken. The targets page tells you <strong>why</strong>.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:9090/api/v1/targets<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.activeTargets[] | select(.health != "up") | "\(.scrapeUrl)  -&gt;  \(.lastError)"'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>http://node03:9100/metrics  -&gt;  Get "http://node03:9100/metrics": dial tcp 10.1.1.13:9100: connect: connection refused
+</code></pre></div>
+
+<p><code>select(.health != "up")</code> keeps only the unhealthy targets. "connection refused" points you to Step 3's table: node_exporter isn't running on node03.</p>
+<p>Confirm it yourself from the Prometheus server:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-v<span class="w"> </span>http://node03:9100/metrics
+</code></pre></div>
+</section><section class="part" id="step-10-send-something-not-just-ask"><h2>Step 10: Send something, not just ask</h2>
+<p><strong>Why:</strong> So far you've only read data. That's a <strong>GET</strong> request. Sending data is a <strong>POST</strong>. A safe way to practice is a fake alert sent to Alertmanager, which is the tool that sends you email or chat notifications. It also proves your alert routing works.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>http://localhost:9093/api/v2/alerts<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'[{"labels": {"alertname": "PracticeAlert", "severity": "info"},</span>
+<span class="s1">        "annotations": {"summary": "Just testing curl - safe to ignore"}}]'</span>
+</code></pre></div>
+
+<p><strong>What the pieces mean:</strong></p>
+<ul>
+<li><code>-X POST</code> means "I'm sending, not asking."</li>
+<li><code>-H 'Content-Type: application/json'</code> adds a <strong>header</strong>, a note that tells the server the data is JSON.</li>
+<li><code>-d '...'</code> is the data itself.</li>
+</ul>
+<p>Now check that it arrived:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:9093/api/v2/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[].labels.alertname'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>PracticeAlert
+</code></pre></div>
+
+<p>It disappears on its own after a few minutes.</p>
+</section><section class="part" id="step-11-use-a-login-token-grafana"><h2>Step 11: Use a login token (Grafana)</h2>
+<p><strong>Why:</strong> Some tools want to know who you are. Grafana uses a <strong>token</strong>, a long secret string you create once in the Grafana UI under <em>Administration → Service accounts</em>.</p>
+<p>Store it in a file so it doesn't end up in your shell history:</p>
+<div class="highlight"><pre><span></span><code><span class="nb">echo</span><span class="w"> </span><span class="s1">'glsa_your_token_here'</span><span class="w"> </span>&gt;<span class="w"> </span>~/.grafana_token
+chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.grafana_token
+</code></pre></div>
+
+<p>Then send it as a header:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="k">$(</span>cat<span class="w"> </span>~/.grafana_token<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:3000/api/search?type<span class="o">=</span>dash-db<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[].title'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>Node Exporter Full
+Slurm Cluster Overview
+GPU Utilization
+</code></pre></div>
+
+<p>That's a list of your dashboards. The same pattern, a header carrying a token, works with most tools that need a login.</p>
+</section><section class="part" id="step-12-turn-it-into-a-simple-check-script"><h2>Step 12: Turn it into a simple check script</h2>
+<p><strong>Why:</strong> Once a command is useful, you'll want to run it on a schedule. Scripts need to know whether something failed, and <code>-f</code> (fail) makes curl report errors through its <strong>exit code</strong>.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsS<span class="w"> </span>http://localhost:9090/-/ready<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Prometheus OK"</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"Prometheus PROBLEM"</span>
+</code></pre></div>
+
+<ul>
+<li><code>-f</code> makes curl exit with an error when the server returns an error code (400 or higher).</li>
+<li><code>-S</code> still shows the error message, even with <code>-s</code>.</li>
+<li><code>&amp;&amp; ... || ...</code> means "if it worked, say OK; otherwise, say PROBLEM."</li>
+</ul>
+<p>A tiny script that checks several services:</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="k">for</span><span class="w"> </span>url<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:9090/-/ready<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:9093/-/ready<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:3000/api/health<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:3100/ready
+<span class="k">do</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span>curl<span class="w"> </span>-fsS<span class="w"> </span>--max-time<span class="w"> </span><span class="m">5</span><span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span><span class="s2">"</span><span class="nv">$url</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"OK    </span><span class="nv">$url</span><span class="s2">"</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"FAIL  </span><span class="nv">$url</span><span class="s2">"</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="k">done</span>
+</code></pre></div>
+
+<p><code>--max-time 5</code> gives up after 5 seconds, so a frozen service can't hang your script.</p>
+</section><section class="part" id="what-youve-learned"><h2>What you've learned</h2>
+<p>You now know the whole pattern:</p>
+<ol>
+<li><strong>Is it alive?</strong> <code>curl URL/-/ready</code> (or <code>/ready</code>, <code>/api/health</code>)</li>
+<li><strong>What does it say?</strong> <code>curl -s URL | jq .</code></li>
+<li><strong>Just the part I need:</strong> <code>| jq -r '.path.to.value'</code></li>
+<li><strong>Ask a question:</strong> <code>curl -sG URL --data-urlencode 'query=...'</code></li>
+<li><strong>Why doesn't it work?</strong> <code>curl -v URL</code></li>
+<li><strong>Send something:</strong> <code>curl -X POST -H 'Content-Type: application/json' -d '...'</code></li>
+<li><strong>Log in:</strong> <code>-H "Authorization: Bearer TOKEN"</code></li>
+<li><strong>Use it in a script:</strong> <code>curl -fsS --max-time 5</code></li>
+</ol>
+<p>Those eight lines cover most of what you'll do day to day.</p>
+</section><section class="part" id="where-to-go-next"><h2>Where to go next</h2>
+<ul>
+<li>Practice Steps 8 and 9 on your own cluster until they feel normal.</li>
+<li>Keep the <a href="curl_observability_cheatsheet.html">cheat sheet</a> open while you work.</li>
+<li>Load the helper functions in <a href="scripts/obs-functions.sh"><code>scripts/obs-functions.sh</code></a> so <code>promdown</code> and <code>promq 'up == 0'</code> replace the long commands.</li>
+<li>When you need a specific tool in depth (Loki logs, tracing, Grafana dashboards backup, Slurm REST), look it up in the <a href="curl_observability_reference.html">complete reference</a>. Read it like a manual, one section at a time, when you need it.</li>
+</ul></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>
