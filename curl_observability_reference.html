@@ -1,0 +1,1427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Observability APIs with curl: Full Reference</title>
+<meta name="description" content="Health, metrics and query APIs for Prometheus, exporters, Pushgateway, Alertmanager, Grafana, Loki, OpenTelemetry, Tempo, Jaeger, Elasticsearch, slurmrestd and Redfish.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Observability APIs with curl: Full Reference</h1>
+<p class="sub">Health, metrics and query APIs for Prometheus, exporters, Pushgateway, Alertmanager, Grafana, Loki, OpenTelemetry, Tempo, Jaeger, Elasticsearch, slurmrestd and Redfish.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#1-curl-fundamentals-for-observability">curl fundamentals for observability</a></li><li><a href="#2-reading-raw-metrics-metrics-and-exposition-formats">Reading raw metrics: /metrics and exposition formats</a></li><li><a href="#3-prometheus-server-http-api">Prometheus server HTTP API</a></li><li><a href="#4-pushgateway-and-prometheus-compatible-backends">Pushgateway and Prometheus-compatible backends</a></li><li><a href="#5-alertmanager-api-v2-port-9093">Alertmanager API v2 (port 9093)</a></li><li><a href="#6-grafana-http-api-port-3000">Grafana HTTP API (port 3000)</a></li><li><a href="#7-loki-logs-over-http-port-3100">Loki: logs over HTTP (port 3100)</a></li><li><a href="#8-opentelemetry-tempo-and-jaeger-traces-and-otlp-for-everything">OpenTelemetry, Tempo and Jaeger: traces (and OTLP for everything)</a></li><li><a href="#9-elasticsearchopensearch-kubernetes-style-health-and-hpc-sources">Elasticsearch/OpenSearch, Kubernetes-style health, and HPC sources</a></li><li><a href="#10-putting-it-together">Putting it together</a></li></ol></nav>
+
+<section class="part"><blockquote>
+<p>Version note: examples target current releases (Prometheus 2.x/3.x, Alertmanager &gt;= 0.27, Grafana 10+, Loki 3.x, Tempo 2.x, Jaeger v2). Check version-specific paths (e.g. the slurmrestd API version) against your own installs.</p>
+</blockquote>
+</section><section class="part" id="1-curl-fundamentals-for-observability"><h2>1. curl fundamentals for observability</h2>
+<p>Every modern observability component exposes plain HTTP: a health endpoint, a <code>/metrics</code> endpoint, and a JSON (sometimes protobuf) API. With curl and jq you can inspect, query and debug the whole stack without a UI. Examples assume a lab host; replace <code>localhost</code> and the ports with your own values.</p>
+<p><strong>Tools to have installed (Rocky 8/9):</strong></p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>curl<span class="w"> </span>jq
+<span class="c1"># optional but handy</span>
+sudo<span class="w"> </span>dnf<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>python3<span class="w">   </span><span class="c1"># for python3 -m json.tool when jq isn't there</span>
+</code></pre></div>
+
+<p><strong>The flags you will use constantly:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Flag</th>
+<th>What it does</th>
+<th>Why it matters here</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>-s</code></td>
+<td>Silent: no progress meter</td>
+<td>Clean output for piping to jq</td>
+</tr>
+<tr>
+<td><code>-S</code></td>
+<td>Show errors even when silent</td>
+<td>Pair with <code>-s</code> as <code>-sS</code></td>
+</tr>
+<tr>
+<td><code>-f</code></td>
+<td>Fail (exit 22) on HTTP &gt;= 400, print no body</td>
+<td>Health checks in scripts and cron</td>
+</tr>
+<tr>
+<td><code>--fail-with-body</code></td>
+<td>Like <code>-f</code> but still prints the error body</td>
+<td>Debugging: APIs explain <em>why</em> in the body</td>
+</tr>
+<tr>
+<td><code>-i</code> / <code>-I</code></td>
+<td>Include response headers / HEAD only</td>
+<td>See <code>Content-Type</code>, <code>Content-Encoding</code>, auth errors</td>
+</tr>
+<tr>
+<td><code>-v</code></td>
+<td>Verbose: TLS handshake, request and response headers</td>
+<td>First stop for "it doesn't connect"</td>
+</tr>
+<tr>
+<td><code>-w '%{http_code}\n'</code></td>
+<td>Print chosen variables after the transfer</td>
+<td>Status codes and timing without the body</td>
+</tr>
+<tr>
+<td><code>-o /dev/null</code></td>
+<td>Discard the body</td>
+<td>Use with <code>-w</code> for pure status checks</td>
+</tr>
+<tr>
+<td><code>-G</code> + <code>--data-urlencode</code></td>
+<td>Put URL-encoded params in the query string of a GET</td>
+<td>Essential for PromQL and LogQL (braces, quotes, spaces)</td>
+</tr>
+<tr>
+<td><code>-H 'Header: value'</code></td>
+<td>Add a header</td>
+<td>Auth tokens, <code>Content-Type</code>, tenant IDs</td>
+</tr>
+<tr>
+<td><code>-d</code> / <code>--data-binary @file</code></td>
+<td>Send a body (implies POST)</td>
+<td>Push APIs, OTLP, dashboard import</td>
+</tr>
+<tr>
+<td><code>-X METHOD</code></td>
+<td>Force a method</td>
+<td><code>DELETE</code> silences, <code>PUT</code>/<code>POST</code> admin calls</td>
+</tr>
+<tr>
+<td><code>-u user:pass</code></td>
+<td>Basic auth</td>
+<td>Grafana admin, Elasticsearch, protected exporters</td>
+</tr>
+<tr>
+<td><code>--max-time N</code> / <code>--connect-timeout N</code></td>
+<td>Bound the whole call / the connect phase</td>
+<td>Stops hung checks from piling up</td>
+</tr>
+<tr>
+<td><code>--cacert</code>, <code>--cert</code>, <code>--key</code>, <code>-k</code></td>
+<td>TLS trust and mTLS client certs; <code>-k</code> skips verification</td>
+<td>Use <code>-k</code> only in a lab, never in a script you keep</td>
+</tr>
+<tr>
+<td><code>--compressed</code></td>
+<td>Ask for gzip and decode it</td>
+<td>Large <code>/metrics</code> payloads</td>
+</tr>
+<tr>
+<td><code>-N</code></td>
+<td>No output buffering</td>
+<td>Streaming endpoints (Loki tail via HTTP, SSE)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Status code only:</strong></p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{http_code}\n'</span><span class="w"> </span>http://localhost:9090/-/ready
+</code></pre></div>
+
+<p><strong>Timing breakdown.</strong> This shows where latency comes from (DNS, TCP, TLS, server):</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'dns=%{time_namelookup} connect=%{time_connect} tls=%{time_appconnect} ttfb=%{time_starttransfer} total=%{time_total} size=%{size_download}\n'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://localhost:9100/metrics
+</code></pre></div>
+
+<p><strong>Safe URL encoding for query languages.</strong> Never hand-encode PromQL or LogQL. Let curl do it:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-sG<span class="w"> </span>http://localhost:9090/api/v1/query<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query=rate(node_cpu_seconds_total{mode!="idle"}[5m])'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<p><strong>Keep secrets out of shell history and <code>ps</code>:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># token in a file, read by curl</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">'Authorization: Bearer glsa_xxx'</span><span class="w"> </span>&gt;<span class="w"> </span>~/.grafana.hdr<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.grafana.hdr
+curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span>@<span class="nv">$HOME</span>/.grafana.hdr<span class="w"> </span>http://grafana:3000/api/org
+
+<span class="c1"># or a ~/.netrc entry for basic auth</span>
+<span class="c1"># machine grafana login admin password s3cret</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>--netrc<span class="w"> </span>http://grafana:3000/api/org
+</code></pre></div>
+
+<p><strong>jq essentials for these APIs:</strong></p>
+<div class="highlight"><pre><span></span><code>jq<span class="w"> </span>.<span class="w">                          </span><span class="c1"># pretty-print</span>
+jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.status'</span><span class="w">               </span><span class="c1"># raw string, no quotes</span>
+jq<span class="w"> </span><span class="s1">'.data.result | length'</span><span class="w">    </span><span class="c1"># count items</span>
+jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[] | "\(.metric.instance)\t\(.value[1])"'</span><span class="w">   </span><span class="c1"># tab-separated report</span>
+jq<span class="w"> </span><span class="s1">'keys'</span><span class="w">                     </span><span class="c1"># discover the shape of an unfamiliar response</span>
+</code></pre></div>
+
+<p><strong>A study habit that works.</strong> For any new component, run these three things in order:</p>
+<ol>
+<li>Find its health endpoint (<code>/-/healthy</code>, <code>/ready</code>, <code>/api/health</code>, <code>/healthz</code>).</li>
+<li>Read its own <code>/metrics</code>. Every component in this guide instruments itself, and the metric names tell you what its internals do.</li>
+<li>Walk its API, starting from status/config endpoints and moving to the query endpoints.</li>
+</ol>
+</section><section class="part" id="2-reading-raw-metrics-metrics-and-exposition-formats"><h2>2. Reading raw metrics: /metrics and exposition formats</h2>
+<p>A scrape is just an HTTP GET. If you can <code>curl</code> a target's <code>/metrics</code> from the Prometheus host, Prometheus can scrape it. If you can't, fix that first.</p>
+<p><strong>Scrape node_exporter by hand:</strong></p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-40
+</code></pre></div>
+
+<p><strong>Anatomy of the text format.</strong> Every metric family has a HELP line, a TYPE line, then one sample per label set:</p>
+<div class="highlight"><pre><span></span><code># HELP node_cpu_seconds_total Seconds the CPUs spent in each mode.
+# TYPE node_cpu_seconds_total counter
+node_cpu_seconds_total{cpu="0",mode="idle"} 81234.56
+node_cpu_seconds_total{cpu="0",mode="system"} 1532.1
+</code></pre></div>
+
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>TYPE</th>
+<th>Meaning</th>
+<th>How you query it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>counter</td>
+<td>Only goes up (resets on restart)</td>
+<td>Always wrap in <code>rate()</code> / <code>increase()</code></td>
+</tr>
+<tr>
+<td>gauge</td>
+<td>Goes up and down</td>
+<td>Use directly, or <code>avg_over_time()</code></td>
+</tr>
+<tr>
+<td>histogram</td>
+<td><code>_bucket{le=...}</code>, <code>_sum</code>, <code>_count</code> series</td>
+<td><code>histogram_quantile(0.95, rate(x_bucket[5m]))</code></td>
+</tr>
+<tr>
+<td>summary</td>
+<td>Pre-computed <code>{quantile=...}</code> plus <code>_sum</code>/<code>_count</code></td>
+<td>Read quantiles directly; you can't aggregate them across instances</td>
+</tr>
+<tr>
+<td>untyped / unknown</td>
+<td>No type declared</td>
+<td>Treat with care</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Content negotiation.</strong> Prometheus asks for OpenMetrics first. You can see the difference yourself:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># classic Prometheus text format (version=0.0.4)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Accept: text/plain'</span><span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+
+<span class="c1"># OpenMetrics: adds "# EOF", _created series, exemplars</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Accept: application/openmetrics-text; version=1.0.0'</span><span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-3
+
+<span class="c1"># what did the server actually return?</span>
+curl<span class="w"> </span>-sI<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Accept: application/openmetrics-text'</span><span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span>content-type
+</code></pre></div>
+
+<p><strong>Useful grep patterns while studying an exporter:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># list every metric family name and its type</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>awk<span class="w"> </span><span class="s1">'/^# TYPE/ {print $3, $4}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>less
+
+<span class="c1"># count series per family (find cardinality hogs)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s1">'^#'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span><span class="s1">'s/[{ ].*//'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-20
+
+<span class="c1"># total series this target produces</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-vc<span class="w"> </span><span class="s1">'^#'</span>
+
+<span class="c1"># one family, all label sets</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">'^node_filesystem_avail_bytes'</span>
+</code></pre></div>
+
+<p><strong>node_exporter specifics:</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># which collectors ran, and did any fail?</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^node_scrape_collector_(success|duration_seconds)'</span>
+
+<span class="c1"># textfile collector output (your own cron-written .prom files)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://node01:9100/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^node_textfile_(scrape_error|mtime_seconds)'</span>
+
+<span class="c1"># restrict a scrape to some collectors (node_exporter &gt;= 1.0)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s1">'http://node01:9100/metrics?collect[]=cpu&amp;collect[]=meminfo'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-c<span class="w"> </span><span class="s1">'^node_'</span>
+</code></pre></div>
+
+<p><strong>Gzip and size.</strong> Big exporters (kube-state-metrics, DCGM, Slurm exporters on large clusters) can return many megabytes:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>--compressed<span class="w"> </span>-o<span class="w"> </span>/dev/null<span class="w"> </span>-w<span class="w"> </span><span class="s1">'bytes=%{size_download} time=%{time_total}s\n'</span><span class="w"> </span>http://node01:9100/metrics
+</code></pre></div>
+
+<p>If scrape time gets close to the job's <code>scrape_timeout</code>, you'll see <code>up == 0</code> with "context deadline exceeded" in the target's <code>lastError</code>.</p>
+<p><strong>Other exporters to study the same way:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Exporter</th>
+<th>Default port</th>
+<th>Worth looking at</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>node_exporter</td>
+<td>9100</td>
+<td><code>node_*</code>, collector success</td>
+</tr>
+<tr>
+<td>blackbox_exporter</td>
+<td>9115</td>
+<td><code>/probe?target=...&amp;module=http_2xx</code> (see below)</td>
+</tr>
+<tr>
+<td>process-exporter</td>
+<td>9256</td>
+<td>per-process-group CPU/mem</td>
+</tr>
+<tr>
+<td>mysqld_exporter (MariaDB)</td>
+<td>9104</td>
+<td><code>mysql_up</code>, <code>mysql_global_status_*</code></td>
+</tr>
+<tr>
+<td>NVIDIA DCGM exporter</td>
+<td>9400</td>
+<td><code>DCGM_FI_DEV_GPU_UTIL</code>, <code>DCGM_FI_DEV_FB_USED</code></td>
+</tr>
+<tr>
+<td>Grafana / Prometheus / Loki / Alertmanager self-metrics</td>
+<td>their own ports</td>
+<td><code>/metrics</code> on each</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>blackbox_exporter, the "curl as a service":</strong></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># probe an HTTP endpoint with the http_2xx module, see what Prometheus would record</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s1">'http://localhost:9115/probe?target=https://grafana.example.com&amp;module=http_2xx'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^probe_(success|http_status_code|duration_seconds|ssl_earliest_cert_expiry)'</span>
+
+<span class="c1"># add debug=true to see the probe's full log</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s1">'http://localhost:9115/probe?target=node01:22&amp;module=tcp_connect&amp;debug=true'</span>
+</code></pre></div>
+
+</section><section class="part" id="3-prometheus-server-http-api"><h2>3. Prometheus server HTTP API</h2>
+<p>The Prometheus API lives under <code>/api/v1/</code>. Every response is JSON with <code>status</code> (<code>success</code> or <code>error</code>), <code>data</code>, and on failure <code>errorType</code> and <code>error</code>. Set <code>P=http://localhost:9090</code> once and reuse it.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">P</span><span class="o">=</span>http://localhost:9090
+</code></pre></div>
+
+<h3 id="31-health-and-lifecycle">3.1 Health and lifecycle</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$P</span>/-/healthy<span class="w">      </span><span class="c1"># process is up               -&gt; "Prometheus Server is Healthy."</span>
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$P</span>/-/ready<span class="w">        </span><span class="c1"># TSDB loaded, serving queries -&gt; "Prometheus Server is Ready." (503 while replaying WAL)</span>
+curl<span class="w"> </span>-fsS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$P</span>/-/reload<span class="w">   </span><span class="c1"># re-read prometheus.yml + rules (needs --web.enable-lifecycle)</span>
+curl<span class="w"> </span>-fsS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$P</span>/-/quit<span class="w">     </span><span class="c1"># graceful shutdown (needs --web.enable-lifecycle)</span>
+</code></pre></div>
+
+<p>If you don't want to enable lifecycle, <code>kill -HUP $(pidof prometheus)</code> reloads too.</p>
+<h3 id="32-build-config-flags-runtime">3.2 Build, config, flags, runtime</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/buildinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data<span class="w">              </span><span class="c1"># version, revision, go version</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/runtimeinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data<span class="w">            </span><span class="c1"># reloadConfigSuccess, lastConfigTime, storageRetention, goroutines</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/flags<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data<span class="w">                  </span><span class="c1"># every CLI flag in effect</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/config<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.data.yaml<span class="w">         </span><span class="c1"># the loaded config (secrets redacted)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/walreplay<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data<span class="w">              </span><span class="c1"># WAL replay progress after a restart</span>
+</code></pre></div>
+
+<p><code>runtimeinfo.reloadConfigSuccess == false</code> is the fastest way to learn that your last edit to <code>prometheus.yml</code> didn't apply.</p>
+<h3 id="33-targets-is-everything-being-scraped">3.3 Targets: is everything being scraped?</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># all active targets: instance, job, health, last error, scrape duration</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/targets?state<span class="o">=</span>active<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.activeTargets[] |</span>
+<span class="s1">  [.labels.job, .labels.instance, .health, (.lastScrapeDuration|tostring), .lastError] | @tsv'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>column<span class="w"> </span>-t<span class="w"> </span>-s<span class="w"> </span><span class="s1">$'\t'</span>
+
+<span class="c1"># only the broken ones</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/targets<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.activeTargets[] | select(.health != "up") | "\(.scrapeUrl)  \(.lastError)"'</span>
+
+<span class="c1"># targets dropped by relabeling (why isn't my node showing up?)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/targets?state<span class="o">=</span>dropped<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.droppedTargets | length'</span>
+
+<span class="c1"># what metadata does a target expose?</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/targets/metadata<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'match_target={job="node"}'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'metric=node_load1'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data
+</code></pre></div>
+
+<h3 id="34-instant-queries">3.4 Instant queries</h3>
+<p><code>/api/v1/query</code> evaluates PromQL at one point in time (now, unless you pass <code>time</code>).</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># who is up?</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up'</span><span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[] | "\(.metric.job)\t\(.metric.instance)\t\(.value[1])"'</span>
+
+<span class="c1"># CPU busy % per node over the last 5 minutes</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s1">'query=100 * (1 - avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])))'</span><span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[] | "\(.metric.instance)\t\(.value[1] | tonumber | floor)%"'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-k2<span class="w"> </span>-n<span class="w"> </span>-r
+
+<span class="c1"># filesystems with less than 10% free</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s1">'query=node_filesystem_avail_bytes{fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes &lt; 0.10'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.result'</span>
+
+<span class="c1"># evaluate at a past moment (RFC3339 or unix seconds)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'time=2026-11-17T08:00:00Z'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.result | length'</span>
+
+<span class="c1"># POST works too; use it for very long queries</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=sum(up)'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<p>Result types you'll see in <code>.data.resultType</code>: <code>vector</code> (instant), <code>matrix</code> (range), <code>scalar</code>, <code>string</code>. Values are always <code>[unix_ts, "string_number"]</code>, so convert with <code>tonumber</code> in jq.</p>
+<h3 id="35-range-queries-what-grafana-graphs-do">3.5 Range queries (what Grafana graphs do)</h3>
+<div class="highlight"><pre><span></span><code><span class="nv">START</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 hour'</span><span class="w"> </span>+%s<span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nv">END</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%s<span class="k">)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query_range<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query=node_load1{instance="node01:9100"}'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="nv">$START</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s2">"end=</span><span class="nv">$END</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'step=60'</span><span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[0].values[] | "\(.[0] | todate)\t\(.[1])"'</span>
+</code></pre></div>
+
+<p>The number of points is <code>(end - start) / step</code>. Prometheus refuses more than 11,000 points per series, so widen <code>step</code> for long ranges.</p>
+<h3 id="36-discovery-series-labels-metadata">3.6 Discovery: series, labels, metadata</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># all label names</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/labels<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+
+<span class="c1"># all values of one label (e.g. every instance, every job)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/label/instance/values<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+
+<span class="c1"># all metric names (it's just the values of __name__)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/label/__name__/values<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>^node_<span class="w"> </span><span class="p">|</span><span class="w"> </span>wc<span class="w"> </span>-l
+
+<span class="c1"># series matching a selector, limited to a time window</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/series<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'match[]=node_network_receive_bytes_total{instance="node01:9100"}'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-15 min'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[].device'</span>
+
+<span class="c1"># HELP / TYPE / unit for metrics (from scrapes)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/metadata<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'metric=node_memory_MemAvailable_bytes'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data
+
+<span class="c1"># exemplars (trace IDs attached to histogram samples, if enabled)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/query_exemplars<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=http_request_duration_seconds_bucket'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="nv">$START</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s2">"end=</span><span class="nv">$END</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data
+</code></pre></div>
+
+<h3 id="37-rules-and-alerts">3.7 Rules and alerts</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># every rule group, its health and last evaluation error</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/rules<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.groups[] | .name as $g | .rules[] | "\($g)\t\(.type)\t\(.name)\t\(.health)\t\(.lastError // "")"'</span>
+
+<span class="c1"># only alerting rules, with current state</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="nv">$P</span><span class="s2">/api/v1/rules?type=alert"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.groups[].rules[] | "\(.state)\t\(.name)"'</span>
+
+<span class="c1"># currently pending/firing alerts as Prometheus sees them</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.alerts[] | "\(.state)\t\(.labels.alertname)\t\(.labels.instance // "-")\t\(.activeAt)"'</span>
+
+<span class="c1"># which Alertmanagers is Prometheus sending to?</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/alertmanagers<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.activeAlertmanagers'</span>
+</code></pre></div>
+
+<p>Check rule files offline before you reload: <code>promtool check rules /etc/prometheus/rules/*.yml</code> and <code>promtool check config /etc/prometheus/prometheus.yml</code>.</p>
+<h3 id="38-formatting-and-parsing-queries">3.8 Formatting and parsing queries</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># pretty-print a PromQL expression (Prometheus &gt;= 2.38)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/format_query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=sum(rate(x[5m]))by(job)'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.data
+
+<span class="c1"># parse to an AST (newer versions, may need --enable-feature=promql-experimental-functions)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/api/v1/parse_query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up == 0'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data
+</code></pre></div>
+
+<h3 id="39-tsdb-status-cardinality-and-storage">3.9 TSDB status: cardinality and storage</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/tsdb<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.headStats'</span><span class="w">                         </span><span class="c1"># numSeries, chunks, minTime/maxTime</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/tsdb<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.seriesCountByMetricName[] | "\(.value)\t\(.name)"'</span><span class="w">   </span><span class="c1"># top metrics by series</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$P</span>/api/v1/status/tsdb<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.labelValueCountByLabelName[] | "\(.value)\t\(.name)"'</span><span class="w">  </span><span class="c1"># high-cardinality labels</span>
+</code></pre></div>
+
+<p>This is the first place to look when Prometheus memory grows. A label like <code>jobid</code>, <code>user</code> or <code>pid</code> on a node-level metric shows up here immediately.</p>
+<h3 id="310-admin-apis-need-webenable-admin-api">3.10 Admin APIs (need --web.enable-admin-api)</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># consistent snapshot of the TSDB to &lt;data-dir&gt;/snapshots/</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$P</span>/api/v1/admin/tsdb/snapshot<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># delete series (marks tombstones), then compact them away</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-g<span class="w"> </span><span class="s2">"</span><span class="nv">$P</span><span class="s2">/api/v1/admin/tsdb/delete_series?match[]={instance=\"oldnode:9100\"}"</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$P</span>/api/v1/admin/tsdb/clean_tombstones
+</code></pre></div>
+
+<p>The admin API can destroy data. Keep it off by default, or bind Prometheus to localhost behind a reverse proxy.</p>
+<h3 id="311-ingest-apis-when-enabled">3.11 Ingest APIs (when enabled)</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Flag</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /api/v1/write</code></td>
+<td><code>--web.enable-remote-write-receiver</code></td>
+<td>Accept remote-write from other Prometheus / agents (snappy protobuf, not curl-friendly)</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/otlp/v1/metrics</code></td>
+<td><code>--web.enable-otlp-receiver</code> (3.x)</td>
+<td>Accept OTLP metrics directly (see section 8)</td>
+</tr>
+<tr>
+<td><code>/federate?match[]=...</code></td>
+<td>none</td>
+<td>Pull current values in text format from another Prometheus</td>
+</tr>
+</tbody>
+</table></div>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$P</span>/federate<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'match[]={job="node"}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</code></pre></div>
+
+<h3 id="312-errors-youll-meet">3.12 Errors you'll meet</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>HTTP</th>
+<th><code>errorType</code></th>
+<th>Typical cause</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>400</td>
+<td><code>bad_data</code></td>
+<td>PromQL syntax error, usually unencoded braces or quotes (use <code>-G --data-urlencode</code>)</td>
+</tr>
+<tr>
+<td>422</td>
+<td><code>execution</code></td>
+<td>Query valid but failed: too many samples, mixed types</td>
+</tr>
+<tr>
+<td>503</td>
+<td><code>timeout</code> / <code>unavailable</code></td>
+<td>Query exceeded <code>--query.timeout</code>, or TSDB not ready</td>
+</tr>
+<tr>
+<td>404</td>
+<td>n/a</td>
+<td>Lifecycle or admin endpoint called without its flag</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="4-pushgateway-and-prometheus-compatible-backends"><h2>4. Pushgateway and Prometheus-compatible backends</h2>
+<h3 id="41-pushgateway-port-9091">4.1 Pushgateway (port 9091)</h3>
+<p>Pushgateway is for short-lived batch jobs that end before Prometheus can scrape them, for example a nightly backup, a Puppet run, or a Slurm epilog. The job pushes once, and Prometheus scrapes the gateway.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">PG</span><span class="o">=</span>http://localhost:9091
+
+<span class="c1"># push one metric: grouping key is /job/&lt;name&gt;[/&lt;label&gt;/&lt;value&gt;...]</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">'backup_last_success_timestamp_seconds 1763390000'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>curl<span class="w"> </span>-sS<span class="w"> </span>--data-binary<span class="w"> </span>@-<span class="w"> </span><span class="nv">$PG</span>/metrics/job/nightly_backup/host/nfs01
+
+<span class="c1"># push several, with HELP/TYPE (body must end with a newline)</span>
+cat<span class="w"> </span><span class="s">&lt;&lt;'EOF' | curl -sS --data-binary @- $PG/metrics/job/puppet_run/instance/node01</span>
+<span class="s"># TYPE puppet_run_duration_seconds gauge</span>
+<span class="s">puppet_run_duration_seconds 42.7</span>
+<span class="s"># TYPE puppet_resources_failed gauge</span>
+<span class="s">puppet_resources_failed 0</span>
+<span class="s">EOF</span>
+
+<span class="c1"># POST replaces only same-named metrics in the group; PUT replaces the whole group</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span>--data-binary<span class="w"> </span>@metrics.txt<span class="w"> </span><span class="nv">$PG</span>/metrics/job/puppet_run/instance/node01
+
+<span class="c1"># delete a group (do this when a host is decommissioned, or its stale value lives forever)</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span><span class="nv">$PG</span>/metrics/job/puppet_run/instance/node01
+
+<span class="c1"># inspect what's stored</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$PG</span>/api/v1/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[] | .labels | "\(.job) \(.instance // "")"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$PG</span>/api/v1/status<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.data
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$PG</span>/-/healthy<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$PG</span>/-/ready
+</code></pre></div>
+
+<p>Pushgateway adds <code>push_time_seconds</code> and <code>push_failure_time_seconds</code> per group. Alert on <code>time() - push_time_seconds &gt; 86400</code> to catch jobs that silently stopped. In the scrape job, set <code>honor_labels: true</code>.</p>
+<h3 id="42-long-term-storage-backends-speak-the-same-query-api">4.2 Long-term storage backends speak the same query API</h3>
+<p>Thanos, Grafana Mimir, Cortex and VictoriaMetrics all implement the Prometheus <code>/api/v1/query*</code>, <code>/api/v1/series</code> and <code>/api/v1/labels</code> endpoints. Everything in section 3.4 to 3.6 works against them after you change the base URL and add the right headers.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Query base URL (typical)</th>
+<th>Extra headers / notes</th>
+<th>Health</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Thanos Query</td>
+<td><code>http://thanos-query:10902</code></td>
+<td><code>dedup=true</code>, <code>partial_response=true</code> params</td>
+<td><code>/-/healthy</code>, <code>/-/ready</code></td>
+</tr>
+<tr>
+<td>Grafana Mimir</td>
+<td><code>http://mimir:8080/prometheus</code></td>
+<td><code>X-Scope-OrgID: &lt;tenant&gt;</code> (required when multi-tenant)</td>
+<td><code>/ready</code>, <code>/config</code>, <code>/services</code></td>
+</tr>
+<tr>
+<td>Cortex</td>
+<td><code>http://cortex/prometheus</code></td>
+<td><code>X-Scope-OrgID</code></td>
+<td><code>/ready</code></td>
+</tr>
+<tr>
+<td>VictoriaMetrics single</td>
+<td><code>http://vm:8428</code></td>
+<td>none</td>
+<td><code>/health</code></td>
+</tr>
+<tr>
+<td>VictoriaMetrics cluster</td>
+<td><code>http://vmselect:8481/select/&lt;accountID&gt;/prometheus</code></td>
+<td>tenant in path</td>
+<td><code>/health</code></td>
+</tr>
+</tbody>
+</table></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Mimir: same PromQL, plus tenant header</span>
+curl<span class="w"> </span>-sG<span class="w"> </span>-H<span class="w"> </span><span class="s1">'X-Scope-OrgID: hpc'</span><span class="w"> </span>http://mimir:8080/prometheus/api/v1/query<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query=count(up)'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># Thanos: deduplicate HA replicas, see which stores answered</span>
+curl<span class="w"> </span>-sG<span class="w"> </span>http://thanos-query:10902/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'dedup=true'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.result | length'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://thanos-query:10902/api/v1/stores<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># VictoriaMetrics extras: export raw samples, check cardinality</span>
+curl<span class="w"> </span>-sG<span class="w"> </span>http://vm:8428/api/v1/export<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'match[]=node_load1'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-2
+curl<span class="w"> </span>-s<span class="w"> </span>http://vm:8428/api/v1/status/tsdb<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.seriesCountByMetricName[:5]'</span>
+
+<span class="c1"># VictoriaMetrics accepts Prometheus text format via HTTP import</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s1">'test_metric{src="curl"} 1'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>curl<span class="w"> </span>-sS<span class="w"> </span>--data-binary<span class="w"> </span>@-<span class="w"> </span>http://vm:8428/api/v1/import/prometheus
+</code></pre></div>
+
+</section><section class="part" id="5-alertmanager-api-v2-port-9093"><h2>5. Alertmanager API v2 (port 9093)</h2>
+<p>Alertmanager receives alerts from Prometheus, groups and deduplicates them, applies silences and inhibitions, and routes them to receivers. Its API is <code>/api/v2/</code> (v1 was removed in 0.27). <code>amtool</code> wraps the same API, but curl shows you exactly what goes over the wire.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">AM</span><span class="o">=</span>http://localhost:9093
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$AM</span>/-/healthy<span class="p">;</span><span class="w"> </span>curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$AM</span>/-/ready
+</code></pre></div>
+
+<h3 id="51-status-and-cluster">5.1 Status and cluster</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/status<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'{version: .versionInfo.version, uptime, cluster: .cluster.status, peers: [.cluster.peers[].address]}'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/status<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.config.original<span class="w">     </span><span class="c1"># the loaded alertmanager.yml</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/receivers<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[].name'</span>
+</code></pre></div>
+
+<p>In an HA pair, <code>cluster.status</code> should be <code>ready</code> and every peer should be listed. If it isn't, notifications get duplicated.</p>
+<h3 id="52-reading-alerts">5.2 Reading alerts</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># everything Alertmanager currently holds</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.status.state)\t\(.labels.alertname)\t\(.labels.instance // "-")\t\(.startsAt)"'</span>
+
+<span class="c1"># filter server-side with matchers; exclude silenced and inhibited</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$AM</span>/api/v2/alerts<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'filter=severity="critical"'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'silenced=false'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'inhibited=false'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>length
+
+<span class="c1"># grouped as they'd be notified</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/alerts/groups<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.receiver.name)\t\(.labels)\t\(.alerts | length) alerts"'</span>
+</code></pre></div>
+
+<h3 id="53-firing-a-test-alert-test-your-routing-without-breaking-anything">5.3 Firing a test alert (test your routing without breaking anything)</h3>
+<div class="highlight"><pre><span></span><code><span class="nv">NOW</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>+%Y-%m-%dT%H:%M:%SZ<span class="k">)</span>
+<span class="nv">END</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>-d<span class="w"> </span><span class="s1">'+5 min'</span><span class="w"> </span>+%Y-%m-%dT%H:%M:%SZ<span class="k">)</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$AM</span>/api/v2/alerts<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"[{</span>
+<span class="s2">  \"labels\": {\"alertname\": \"CurlTestAlert\", \"severity\": \"warning\", \"instance\": \"node01\", \"team\": \"hpc\"},</span>
+<span class="s2">  \"annotations\": {\"summary\": \"Test alert sent with curl\", \"description\": \"Safe to ignore\"},</span>
+<span class="s2">  \"startsAt\": \"</span><span class="nv">$NOW</span><span class="s2">\", \"endsAt\": \"</span><span class="nv">$END</span><span class="s2">\",</span>
+<span class="s2">  \"generatorURL\": \"http://localhost/curl-test\"</span>
+<span class="s2">}]"</span><span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{http_code}\n'</span>
+</code></pre></div>
+
+<p>Alertmanager returns 200 with an empty body. Then check that it landed in the right group and receiver (5.2). To resolve it early, POST the same labels with <code>endsAt</code> set to now.</p>
+<p>This is also how non-Prometheus tools can raise alerts. A Slurm health-check script or your BMC recovery script can POST straight to Alertmanager and use the same routing and silencing.</p>
+<h3 id="54-silences">5.4 Silences</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># create a 2-hour maintenance silence for one node</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="nv">$AM</span>/api/v2/silences<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2">  \"matchers\": [{\"name\": \"instance\", \"value\": \"node01.*\", \"isRegex\": true, \"isEqual\": true}],</span>
+<span class="s2">  \"startsAt\": \"</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>+%Y-%m-%dT%H:%M:%SZ<span class="k">)</span><span class="s2">\",</span>
+<span class="s2">  \"endsAt\": \"</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>-d<span class="w"> </span><span class="s1">'+2 hours'</span><span class="w"> </span>+%Y-%m-%dT%H:%M:%SZ<span class="k">)</span><span class="s2">\",</span>
+<span class="s2">  \"createdBy\": \"</span><span class="nv">$USER</span><span class="s2">\",</span>
+<span class="s2">  \"comment\": \"Firmware update via iLO\"</span>
+<span class="s2">}"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.silenceID
+
+<span class="c1"># list active silences</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$AM</span>/api/v2/silences<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | select(.status.state=="active") | "\(.id)\t\(.endsAt)\t\(.createdBy)\t\(.comment)"'</span>
+
+<span class="c1"># expire (delete) a silence</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span><span class="nv">$AM</span>/api/v2/silence/&lt;silenceID&gt;
+</code></pre></div>
+
+<p>To extend a silence, POST it again with its <code>id</code> field included and a new <code>endsAt</code>.</p>
+<h3 id="55-webhook-receivers-see-what-alertmanager-sends">5.5 Webhook receivers: see what Alertmanager sends</h3>
+<p>To study the notification payload, point a <code>webhook_configs</code> receiver at a throwaway listener and fire a test alert:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># listener (prints the raw POST body)</span>
+python3<span class="w"> </span>-c<span class="w"> </span><span class="s1">'import http.server as h</span>
+<span class="s1">class H(h.BaseHTTPRequestHandler):</span>
+<span class="s1">  def do_POST(s):</span>
+<span class="s1">    print(s.rfile.read(int(s.headers["Content-Length"])).decode()); s.send_response(200); s.end_headers()</span>
+<span class="s1">h.HTTPServer(("0.0.0.0",5001),H).serve_forever()'</span>
+</code></pre></div>
+
+<p>The body is the webhook v4 format: <code>receiver</code>, <code>status</code>, <code>groupLabels</code>, <code>commonLabels</code>, <code>externalURL</code> and an <code>alerts[]</code> array.</p>
+</section><section class="part" id="6-grafana-http-api-port-3000"><h2>6. Grafana HTTP API (port 3000)</h2>
+<p>Anything you click in Grafana is a call to <code>/api/...</code>. Learning the API lets you back up dashboards, provision data sources, run queries through Grafana, and drop annotations from scripts. Open the browser dev tools (Network tab) on any Grafana page to see the exact call a button makes, then replay it with curl.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">G</span><span class="o">=</span>http://localhost:3000
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$G</span>/api/health<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.<span class="w">      </span><span class="c1"># {"database":"ok","version":"..."}; no auth needed</span>
+</code></pre></div>
+
+<h3 id="61-authentication">6.1 Authentication</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th>How</th>
+<th>Use for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Basic auth</td>
+<td><code>-u admin:password</code></td>
+<td>First-time setup, labs</td>
+</tr>
+<tr>
+<td>Service account token</td>
+<td><code>-H 'Authorization: Bearer glsa_...'</code></td>
+<td>Scripts and automation (API keys are deprecated)</td>
+</tr>
+<tr>
+<td>Org context</td>
+<td><code>-H 'X-Grafana-Org-Id: 2'</code></td>
+<td>Calls against a non-default org</td>
+</tr>
+</tbody>
+</table></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># create a service account + token (as admin)</span>
+<span class="nv">SA</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span>-u<span class="w"> </span>admin:admin<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"name":"automation","role":"Editor"}'</span><span class="w"> </span><span class="nv">$G</span>/api/serviceaccounts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.id<span class="k">)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-u<span class="w"> </span>admin:admin<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s1">'{"name":"cli"}'</span><span class="w"> </span><span class="nv">$G</span>/api/serviceaccounts/<span class="nv">$SA</span>/tokens<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.key<span class="w"> </span>&gt;<span class="w"> </span>~/.grafana_token
+chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~/.grafana_token
+
+<span class="nv">AUTH</span><span class="o">=</span><span class="s2">"Authorization: Bearer </span><span class="k">$(</span>cat<span class="w"> </span>~/.grafana_token<span class="k">)</span><span class="s2">"</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/user<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'{login, orgId}'</span>
+</code></pre></div>
+
+<h3 id="62-instance-and-org-info">6.2 Instance and org info</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/frontend/settings<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.buildInfo'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-u<span class="w"> </span>admin:admin<span class="w"> </span><span class="nv">$G</span>/api/admin/stats<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'{dashboards, datasources, users, alerts}'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-u<span class="w"> </span>admin:admin<span class="w"> </span><span class="nv">$G</span>/api/orgs<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.id)\t\(.name)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/org/users<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.login)\t\(.role)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/plugins?type<span class="o">=</span>datasource<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[].id'</span>
+</code></pre></div>
+
+<h3 id="63-data-sources">6.3 Data sources</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># list</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/datasources<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.uid)\t\(.type)\t\(.name)\t\(.url)"'</span>
+
+<span class="c1"># create a Prometheus data source</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="nv">$G</span>/api/datasources<span class="w"> </span>-d<span class="w"> </span><span class="s1">'{</span>
+<span class="s1">  "name": "Prometheus", "type": "prometheus", "uid": "prom-main",</span>
+<span class="s1">  "url": "http://prometheus:9090", "access": "proxy", "isDefault": true,</span>
+<span class="s1">  "jsonData": {"httpMethod": "POST", "timeInterval": "15s"}</span>
+<span class="s1">}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># test it, the same as the "Save &amp; test" button</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/datasources/uid/prom-main/health<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<h3 id="64-query-through-grafana">6.4 Query through Grafana</h3>
+<p>This proves that Grafana itself (not just your laptop) can reach the backend.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># raw passthrough proxy to the data source's own API</span>
+curl<span class="w"> </span>-sG<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/datasources/proxy/uid/prom-main/api/v1/query<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query=up'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.result | length'</span>
+
+<span class="c1"># unified query API used by panels (works for any data source type)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="nv">$G</span>/api/ds/query<span class="w"> </span>-d<span class="w"> </span><span class="s1">'{</span>
+<span class="s1">  "from": "now-1h", "to": "now",</span>
+<span class="s1">  "queries": [{"refId": "A", "datasource": {"uid": "prom-main"},</span>
+<span class="s1">               "expr": "avg(node_load1)", "intervalMs": 60000, "maxDataPoints": 60}]</span>
+<span class="s1">}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.results.A.frames[0].data.values | map(length)'</span>
+</code></pre></div>
+
+<h3 id="65-dashboards-search-export-import">6.5 Dashboards: search, export, import</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># search</span>
+curl<span class="w"> </span>-sG<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/search<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=node'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'type=dash-db'</span><span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.uid)\t\(.folderTitle // "General")\t\(.title)"'</span>
+
+<span class="c1"># export one dashboard JSON</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/dashboards/uid/&lt;uid&gt;<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.dashboard<span class="w"> </span>&gt;<span class="w"> </span>dash.json
+
+<span class="c1"># back up every dashboard (good nightly cron)</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span>grafana-backup
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$G</span><span class="s2">/api/search?type=dash-db&amp;limit=5000"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[].uid'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="k">while</span><span class="w"> </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>uid<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/dashboards/uid/<span class="nv">$uid</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.dashboard<span class="w"> </span>&gt;<span class="w"> </span>grafana-backup/<span class="nv">$uid</span>.json
+<span class="k">done</span>
+
+<span class="c1"># import / overwrite (drop the numeric id so it works on another instance)</span>
+jq<span class="w"> </span><span class="s1">'{dashboard: (. | .id = null), folderUid: "hpc", overwrite: true, message: "via curl"}'</span><span class="w"> </span>dash.json<span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span>@-<span class="w"> </span><span class="nv">$G</span>/api/dashboards/db<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># import a community dashboard, e.g. Node Exporter Full (ID 1860)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>https://grafana.com/api/dashboards/1860/revisions/latest/download<span class="w"> </span>-o<span class="w"> </span>node-full.json
+
+<span class="c1"># version history of a dashboard</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/dashboards/uid/&lt;uid&gt;/versions<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.versions[]? // .[] | "\(.version)\t\(.createdBy)\t\(.message)"'</span>
+</code></pre></div>
+
+<p>Folders work the same way: <code>GET/POST $G/api/folders</code>.</p>
+<h3 id="66-annotations-mark-events-on-every-graph">6.6 Annotations: mark events on every graph</h3>
+<p>Annotations are very useful in HPC. Post one when you drain a partition, reboot a node, or upgrade Slurm, and it shows on every dashboard.</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="nv">$G</span>/api/annotations<span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2">  \"time\": </span><span class="k">$(</span>date<span class="w"> </span>+%s%3N<span class="k">)</span><span class="s2">, \"tags\": [\"maintenance\", \"slurm\"],</span>
+<span class="s2">  \"text\": \"slurmctld upgraded on head01\"</span>
+<span class="s2">}"</span>
+
+curl<span class="w"> </span>-sG<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/annotations<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'tags=maintenance'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'limit=20'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.time/1000|todate)\t\(.text)"'</span>
+</code></pre></div>
+
+<h3 id="67-grafana-managed-alerting">6.7 Grafana-managed alerting</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># provisioning API (stable, file-provisioning compatible)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/v1/provisioning/alert-rules<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.uid)\t\(.title)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/v1/provisioning/contact-points<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.[] | "\(.name)\t\(.type)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/v1/provisioning/policies<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># current alert state (Prometheus-compatible view)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/prometheus/grafana/api/v1/rules<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.groups[].rules[] | "\(.state)\t\(.name)"'</span>
+
+<span class="c1"># Grafana's built-in Alertmanager</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"</span><span class="nv">$AUTH</span><span class="s2">"</span><span class="w"> </span><span class="nv">$G</span>/api/alertmanager/grafana/api/v2/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>length
+</code></pre></div>
+
+<h3 id="68-grafanas-own-metrics">6.8 Grafana's own metrics</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$G</span>/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^grafana_(http_request_duration_seconds_count|alerting_.*active|database_conn_open)'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</code></pre></div>
+
+</section><section class="part" id="7-loki-logs-over-http-port-3100"><h2>7. Loki: logs over HTTP (port 3100)</h2>
+<p>Loki indexes only labels and stores log lines as compressed chunks. Its API has a write side (<code>/loki/api/v1/push</code>) and a read side that mirrors Prometheus (<code>query</code>, <code>query_range</code>, <code>labels</code>, <code>series</code>). Multi-tenant installs need <code>X-Scope-OrgID</code> on every call.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">L</span><span class="o">=</span>http://localhost:3100
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$L</span>/ready<span class="w">                     </span><span class="c1"># "ready" (may say "Ingester not ready: waiting for 15s after being ready" at startup)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/status/buildinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/services<span class="w">                    </span><span class="c1"># every internal module and its state</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/config<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-50<span class="w">           </span><span class="c1"># effective config (YAML)</span>
+</code></pre></div>
+
+<h3 id="71-push-a-log-line">7.1 Push a log line</h3>
+<p>Timestamps are <strong>nanosecond</strong> epoch strings.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">TS</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%s%N<span class="k">)</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="nv">$L</span>/loki/api/v1/push<span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2">  \"streams\": [{</span>
+<span class="s2">    \"stream\": {\"job\": \"curl-test\", \"host\": \"</span><span class="k">$(</span>hostname<span class="w"> </span>-s<span class="k">)</span><span class="s2">\", \"level\": \"info\"},</span>
+<span class="s2">    \"values\": [[\"</span><span class="nv">$TS</span><span class="s2">\", \"hello from curl, user=</span><span class="nv">$USER</span><span class="s2">\"]]</span>
+<span class="s2">  }]</span>
+<span class="s2">}"</span><span class="w"> </span>-w<span class="w"> </span><span class="s1">'%{http_code}\n'</span><span class="w">      </span><span class="c1"># 204 = accepted</span>
+</code></pre></div>
+
+<p>Common rejections: <code>400 entry too far behind</code> (timestamp older than the stream's newest), <code>429</code> (rate limits), and <code>400 ... labels</code> (too many labels, or high-cardinality labels like a job ID). Put high-cardinality values in the log line or in structured metadata, not in labels.</p>
+<h3 id="72-discover-labels-and-streams">7.2 Discover labels and streams</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/labels<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/label/job/values<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/series<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'match[]={job="varlogs"}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data | length'</span>
+
+<span class="c1"># size of what a selector would scan (Loki &gt;= 2.8)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/index/stats<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query={job="varlogs"}'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 day'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">000000000"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<h3 id="73-query-logs-logql">7.3 Query logs (LogQL)</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># last hour of slurmctld errors, newest first</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/query_range<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query={job="slurm", host="head01"} |= "error"'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 hour'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'limit=50'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'direction=backward'</span><span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[] | .values[] | "\(.[0] | tonumber / 1e9 | todate)  \(.[1])"'</span>
+
+<span class="c1"># parse and filter: sshd failed logins by source IP</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/query_range<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query={job="varlogs"} |= "Failed password" | regexp "from (?P&lt;ip&gt;\\S+)"'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-6 hours'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.result[].stream.ip'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span>-rn
+
+<span class="c1"># metric query: log lines per host per 5m (returns a matrix like Prometheus)</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/query_range<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'query=sum by (host) (count_over_time({job="varlogs"} |= "oom-kill" [5m]))'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 day'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'step=300'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.result[] | {host: .metric.host, points: (.values|length)}'</span>
+
+<span class="c1"># instant metric query</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/query<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query=sum(count_over_time({job="varlogs"}[1h]))'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data.result'</span>
+</code></pre></div>
+
+<p><code>start</code>/<code>end</code> accept seconds, nanoseconds or RFC3339. The default range is the last hour, and <code>limit</code> defaults to 100.</p>
+<h3 id="74-live-tail">7.4 Live tail</h3>
+<p><code>/loki/api/v1/tail</code> is a WebSocket, so plain curl can't follow it well. Use <code>logcli</code> for tailing (<code>logcli query --tail '{job="slurm"}'</code>), or poll <code>query_range</code> with <code>direction=forward</code> and a moving <code>start</code>.</p>
+<h3 id="75-ruler-and-deletes">7.5 Ruler and deletes</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/rules<span class="w">                    </span><span class="c1"># YAML of log-based alert rules</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/prometheus/api/v1/alerts<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.<span class="w">      </span><span class="c1"># firing log alerts, Prometheus format</span>
+
+<span class="c1"># request deletion of log lines (needs compactor retention_enabled + deletion_mode)</span>
+curl<span class="w"> </span>-sS<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-G<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/delete<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'query={job="curl-test"}'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 day'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$L</span>/loki/api/v1/delete<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<h3 id="76-the-shippers">7.6 The shippers</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Port</th>
+<th>Useful curl targets</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Grafana Alloy (replaces Promtail and Grafana Agent)</td>
+<td>12345</td>
+<td><code>/-/ready</code>, <code>/metrics</code>, UI at <code>/</code> shows the component graph</td>
+</tr>
+<tr>
+<td>Promtail (end-of-life since early 2026)</td>
+<td>9080</td>
+<td><code>/ready</code>, <code>/targets</code>, <code>/metrics</code> (<code>promtail_sent_entries_total</code>)</td>
+</tr>
+<tr>
+<td>Fluent Bit</td>
+<td>2020</td>
+<td><code>/api/v1/health</code>, <code>/api/v1/metrics/prometheus</code> (needs <code>HTTP_Server On</code>)</td>
+</tr>
+<tr>
+<td>Vector</td>
+<td>8686</td>
+<td><code>/health</code>, GraphQL API at <code>/graphql</code></td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="8-opentelemetry-tempo-and-jaeger-traces-and-otlp-for-everything"><h2>8. OpenTelemetry, Tempo and Jaeger: traces (and OTLP for everything)</h2>
+<p>OTLP is the vendor-neutral wire protocol for traces, metrics and logs. It runs over gRPC on port 4317 and over HTTP on port 4318. The HTTP form accepts JSON, so you can hand-craft telemetry with curl and watch it flow through the Collector into Tempo, Prometheus and Loki.</p>
+<h3 id="81-opentelemetry-collector-endpoints">8.1 OpenTelemetry Collector endpoints</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Port</th>
+<th>Extension / receiver</th>
+<th>What curl gets you</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>4318</td>
+<td><code>otlp</code> receiver, HTTP</td>
+<td><code>POST /v1/traces</code>, <code>/v1/metrics</code>, <code>/v1/logs</code></td>
+</tr>
+<tr>
+<td>4317</td>
+<td><code>otlp</code> receiver, gRPC</td>
+<td>Not curl; use <code>grpcurl</code></td>
+</tr>
+<tr>
+<td>13133</td>
+<td><code>health_check</code> extension</td>
+<td><code>GET /</code> → <code>{"status":"Server available",...}</code></td>
+</tr>
+<tr>
+<td>55679</td>
+<td><code>zpages</code> extension</td>
+<td><code>/debug/tracez</code>, <code>/debug/pipelinez</code>, <code>/debug/servicez</code> (HTML)</td>
+</tr>
+<tr>
+<td>8888</td>
+<td>Collector self-telemetry</td>
+<td><code>/metrics</code>: <code>otelcol_receiver_accepted_*</code>, <code>otelcol_exporter_send_failed_*</code></td>
+</tr>
+<tr>
+<td>1777</td>
+<td><code>pprof</code> extension</td>
+<td><code>/debug/pprof/</code> profiles</td>
+</tr>
+</tbody>
+</table></div>
+<div class="highlight"><pre><span></span><code><span class="nv">OC</span><span class="o">=</span>http://localhost
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$OC</span>:13133/<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$OC</span>:8888/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^otelcol_(receiver_accepted|receiver_refused|exporter_sent|exporter_send_failed)_spans'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$OC</span>:55679/debug/pipelinez<span class="w"> </span><span class="p">|</span><span class="w"> </span>sed<span class="w"> </span><span class="s1">'s/&lt;[^&gt;]*&gt;//g'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span><span class="s1">'^\s*$'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-40
+</code></pre></div>
+
+<p>If <code>receiver_accepted</code> grows but <code>exporter_sent</code> doesn't, the backend is the problem. If <code>receiver_refused</code> grows, look at the memory limiter or your payload.</p>
+<h3 id="82-send-a-trace-by-hand">8.2 Send a trace by hand</h3>
+<p>Trace IDs are 32 hex characters, span IDs are 16, and times are nanoseconds.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">TRACE</span><span class="o">=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">16</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nv">SPAN</span><span class="o">=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">8</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nv">CHILD</span><span class="o">=</span><span class="k">$(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">8</span><span class="k">)</span>
+<span class="nv">T0</span><span class="o">=</span><span class="k">$(</span>date<span class="w"> </span>+%s%N<span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="nv">T1</span><span class="o">=</span><span class="k">$((</span><span class="nv">T0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">250000000</span><span class="k">))</span><span class="p">;</span><span class="w"> </span><span class="nv">T2</span><span class="o">=</span><span class="k">$((</span><span class="nv">T0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="m">900000000</span><span class="k">))</span>
+
+curl<span class="w"> </span>-sS<span class="w"> </span><span class="nv">$OC</span>:4318/v1/traces<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2"> \"resourceSpans\": [{</span>
+<span class="s2">  \"resource\": {\"attributes\": [</span>
+<span class="s2">    {\"key\": \"service.name\", \"value\": {\"stringValue\": \"curl-demo\"}},</span>
+<span class="s2">    {\"key\": \"host.name\", \"value\": {\"stringValue\": \"</span><span class="k">$(</span>hostname<span class="w"> </span>-s<span class="k">)</span><span class="s2">\"}}]},</span>
+<span class="s2">  \"scopeSpans\": [{\"scope\": {\"name\": \"manual\"}, \"spans\": [</span>
+<span class="s2">    {\"traceId\": \"</span><span class="nv">$TRACE</span><span class="s2">\", \"spanId\": \"</span><span class="nv">$SPAN</span><span class="s2">\", \"name\": \"submit-job\", \"kind\": 2,</span>
+<span class="s2">     \"startTimeUnixNano\": \"</span><span class="nv">$T0</span><span class="s2">\", \"endTimeUnixNano\": \"</span><span class="nv">$T2</span><span class="s2">\",</span>
+<span class="s2">     \"attributes\": [{\"key\": \"slurm.partition\", \"value\": {\"stringValue\": \"gpu\"}}],</span>
+<span class="s2">     \"status\": {\"code\": 1}},</span>
+<span class="s2">    {\"traceId\": \"</span><span class="nv">$TRACE</span><span class="s2">\", \"spanId\": \"</span><span class="nv">$CHILD</span><span class="s2">\", \"parentSpanId\": \"</span><span class="nv">$SPAN</span><span class="s2">\", \"name\": \"stage-data\", \"kind\": 1,</span>
+<span class="s2">     \"startTimeUnixNano\": \"</span><span class="nv">$T0</span><span class="s2">\", \"endTimeUnixNano\": \"</span><span class="nv">$T1</span><span class="s2">\"}</span>
+<span class="s2">  ]}]</span>
+<span class="s2"> }]</span>
+<span class="s2">}"</span><span class="w"> </span>-w<span class="w"> </span><span class="s1">'\n%{http_code}\n'</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"trace id: </span><span class="nv">$TRACE</span><span class="s2">"</span>
+</code></pre></div>
+
+<p>A <code>200</code> with <code>{"partialSuccess":{}}</code> (or an empty body) means accepted. Span <code>kind</code>: 1 internal, 2 server, 3 client, 4 producer, 5 consumer. Status <code>code</code>: 0 unset, 1 OK, 2 error.</p>
+<h3 id="83-send-metrics-and-logs-over-otlp">8.3 Send metrics and logs over OTLP</h3>
+<div class="highlight"><pre><span></span><code><span class="c1"># a gauge</span>
+curl<span class="w"> </span>-sS<span class="w"> </span><span class="nv">$OC</span>:4318/v1/metrics<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2"> \"resourceMetrics\": [{\"resource\": {\"attributes\": [{\"key\":\"service.name\",\"value\":{\"stringValue\":\"curl-demo\"}}]},</span>
+<span class="s2">  \"scopeMetrics\": [{\"metrics\": [{\"name\": \"demo.queue.depth\", \"unit\": \"1\",</span>
+<span class="s2">    \"gauge\": {\"dataPoints\": [{\"asInt\": \"42\", \"timeUnixNano\": \"</span><span class="k">$(</span>date<span class="w"> </span>+%s%N<span class="k">)</span><span class="s2">\",</span>
+<span class="s2">      \"attributes\": [{\"key\":\"partition\",\"value\":{\"stringValue\":\"gpu\"}}]}]}}]}]}]}"</span>
+
+<span class="c1"># a log record correlated with the trace above</span>
+curl<span class="w"> </span>-sS<span class="w"> </span><span class="nv">$OC</span>:4318/v1/logs<span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s2">"{</span>
+<span class="s2"> \"resourceLogs\": [{\"resource\": {\"attributes\": [{\"key\":\"service.name\",\"value\":{\"stringValue\":\"curl-demo\"}}]},</span>
+<span class="s2">  \"scopeLogs\": [{\"logRecords\": [{\"timeUnixNano\": \"</span><span class="k">$(</span>date<span class="w"> </span>+%s%N<span class="k">)</span><span class="s2">\", \"severityNumber\": 17, \"severityText\": \"ERROR\",</span>
+<span class="s2">    \"body\": {\"stringValue\": \"stage-data failed: NFS timeout\"},</span>
+<span class="s2">    \"traceId\": \"</span><span class="nv">$TRACE</span><span class="s2">\", \"spanId\": \"</span><span class="nv">$CHILD</span><span class="s2">\"}]}]}]}"</span>
+</code></pre></div>
+
+<p>With a <code>debug</code> exporter (<code>verbosity: detailed</code>) in the pipeline, <code>journalctl -u otelcol -f</code> shows each item arriving. That is the quickest way to learn the data model.</p>
+<p>Prometheus 3.x can take OTLP metrics directly at <code>POST /api/v1/otlp/v1/metrics</code> (start it with <code>--web.enable-otlp-receiver</code>). Loki 3.x accepts OTLP logs at <code>POST /otlp/v1/logs</code>.</p>
+<h3 id="84-tempo-http-port-3200">8.4 Tempo (HTTP port 3200)</h3>
+<div class="highlight"><pre><span></span><code><span class="nv">T</span><span class="o">=</span>http://localhost:3200
+curl<span class="w"> </span>-fsS<span class="w"> </span><span class="nv">$T</span>/ready<span class="p">;</span><span class="w"> </span>curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$T</span>/status/buildinfo<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># fetch the trace you just sent (v2 API returns OTLP JSON)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$T</span>/api/v2/traces/<span class="nv">$TRACE</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.trace.resourceSpans[].scopeSpans[].spans[] | {name, spanId, parentSpanId}'</span>
+
+<span class="c1"># TraceQL search: slow or failed spans from one service in the last hour</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$T</span>/api/search<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s1">'q={ resource.service.name = "curl-demo" &amp;&amp; (duration &gt; 500ms || status = error) }'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 hour'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s2">"end=</span><span class="k">$(</span>date<span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'limit=20'</span><span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.traces[] | "\(.traceID)\t\(.rootServiceName)\t\(.rootTraceName)\t\(.durationMs)ms"'</span>
+
+<span class="c1"># discover attributes and values</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$T</span>/api/v2/search/tags<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$T</span>/api/v2/search/tag/resource.service.name/values<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.tagValues[].value'</span>
+
+<span class="c1"># TraceQL metrics (Tempo &gt;= 2.4): span rate by service</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$T</span>/api/metrics/query_range<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'q={} | rate() by (resource.service.name)'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-urlencode<span class="w"> </span><span class="s2">"start=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 hour'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'step=60s'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.series | length'</span>
+</code></pre></div>
+
+<p>Traces can take a few seconds to become searchable. Fetch by ID works first because it reads the ingester directly.</p>
+<h3 id="85-jaeger-query-port-16686">8.5 Jaeger (query port 16686)</h3>
+<p>Jaeger v2 is built on the OpenTelemetry Collector, so it also accepts OTLP on 4317/4318.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">J</span><span class="o">=</span>http://localhost:16686
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$J</span>/api/services<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="nv">$J</span><span class="s2">/api/services/curl-demo/operations"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[]'</span>
+curl<span class="w"> </span>-sG<span class="w"> </span><span class="nv">$J</span>/api/traces<span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'service=curl-demo'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'lookback=1h'</span><span class="w"> </span>--data-urlencode<span class="w"> </span><span class="s1">'limit=10'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data[] | "\(.traceID)\t\(.spans | length) spans"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$J</span>/api/traces/<span class="nv">$TRACE</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.data[0].spans[] | {operationName, duration}'</span>
+
+<span class="c1"># newer stable API (Jaeger v2): /api/v3/...</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="nv">$J</span>/api/v3/services<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<p>The <code>/api/...</code> paths are the UI's internal API and work well for study, but the documented stable API is <code>/api/v3</code> (and gRPC).</p>
+</section><section class="part" id="9-elasticsearchopensearch-kubernetes-style-health-and-hpc-sources"><h2>9. Elasticsearch/OpenSearch, Kubernetes-style health, and HPC sources</h2>
+<h3 id="91-elasticsearch-opensearch-port-9200">9.1 Elasticsearch / OpenSearch (port 9200)</h3>
+<p>The <code>_cat</code> APIs return human-readable tables (add <code>?v</code> for headers). Everything else returns JSON. Recent Elasticsearch enables TLS and auth by default.</p>
+<div class="highlight"><pre><span></span><code><span class="nv">ES</span><span class="o">=</span>https://localhost:9200<span class="p">;</span><span class="w"> </span><span class="nv">A</span><span class="o">=(</span>-u<span class="w"> </span>elastic:changeme<span class="w"> </span>--cacert<span class="w"> </span>/etc/elasticsearch/certs/http_ca.crt<span class="o">)</span>
+
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$ES</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'{name, cluster_name, version: .version.number}'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cluster/health?pretty"</span><span class="w">                </span><span class="c1"># status green/yellow/red, unassigned_shards</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cluster/health?wait_for_status=yellow&amp;timeout=30s"</span><span class="w">   </span><span class="c1"># block until healthy (scripts)</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cat/nodes?v&amp;h=name,ip,heap.percent,ram.percent,cpu,load_1m,node.role,master"</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cat/indices?v&amp;s=store.size:desc&amp;h=health,index,docs.count,store.size"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cat/shards?v&amp;h=index,shard,prirep,state,unassigned.reason"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-v<span class="w"> </span>STARTED
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cluster/allocation/explain?pretty"</span><span class="w">    </span><span class="c1"># WHY a shard is unassigned</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_nodes/stats/jvm,fs,os"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.nodes[] | {name, heap: .jvm.mem.heap_used_percent, disk_free: .fs.total.available_in_bytes}'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/_cat/thread_pool/search,write?v&amp;h=node_name,name,active,queue,rejected"</span>
+
+<span class="c1"># a search</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">A</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$ES</span><span class="s2">/logs-*/_search"</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">'{</span>
+<span class="s1">  "size": 5, "sort": [{"@timestamp": "desc"}],</span>
+<span class="s1">  "query": {"bool": {"filter": [{"range": {"@timestamp": {"gte": "now-15m"}}}, {"match": {"message": "error"}}]}}</span>
+<span class="s1">}'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.hits.hits[]._source.message'</span>
+</code></pre></div>
+
+<p>OpenSearch uses the same paths. Its security plugin uses <code>-u admin:&lt;password&gt;</code>, and it adds <code>_plugins/_security/health</code>.</p>
+<h3 id="92-the-healthz-livez-readyz-convention">9.2 The healthz / livez / readyz convention</h3>
+<p>Kubernetes popularized three probes, and many cloud-native tools now copy them:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Probe</th>
+<th>Question it answers</th>
+<th>Failure means</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/livez</code> (older: <code>/healthz</code>)</td>
+<td>Is the process alive?</td>
+<td>Restart it</td>
+</tr>
+<tr>
+<td><code>/readyz</code></td>
+<td>Can it serve traffic right now?</td>
+<td>Take it out of the load balancer, don't restart it</td>
+</tr>
+<tr>
+<td><code>/startupz</code> or startup probe</td>
+<td>Has it finished initializing?</td>
+<td>Wait longer</td>
+</tr>
+</tbody>
+</table></div>
+<div class="highlight"><pre><span></span><code><span class="c1"># Kubernetes API server (verbose shows each sub-check)</span>
+curl<span class="w"> </span>-sk<span class="w"> </span>https://k8s-api:6443/readyz?verbose
+curl<span class="w"> </span>-sk<span class="w"> </span>https://k8s-api:6443/livez?verbose
+<span class="c1"># with a token</span>
+curl<span class="w"> </span>-s<span class="w"> </span>--cacert<span class="w"> </span>ca.crt<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span>https://k8s-api:6443/apis/metrics.k8s.io/v1beta1/nodes<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># kubelet, etcd, CoreDNS</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:10248/healthz<span class="w">                 </span><span class="c1"># kubelet</span>
+curl<span class="w"> </span>-s<span class="w"> </span>--cacert<span class="w"> </span>ca.crt<span class="w"> </span>--cert<span class="w"> </span>c.crt<span class="w"> </span>--key<span class="w"> </span>c.key<span class="w"> </span>https://localhost:2379/health<span class="w">   </span><span class="c1"># etcd: {"health":"true"}</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8080/health<span class="w">                   </span><span class="c1"># CoreDNS health plugin</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://localhost:8181/ready<span class="w">                    </span><span class="c1"># CoreDNS ready plugin</span>
+</code></pre></div>
+
+<p>OpenStack services follow a similar idea. Many expose <code>/healthcheck</code> via oslo.middleware, for example <code>curl -s http://controller:9696/healthcheck</code> for Neutron.</p>
+<h3 id="93-hpc-specific-sources">9.3 HPC-specific sources</h3>
+<p><strong>slurmrestd</strong> gives a REST/JSON view of the scheduler. The API version in the path depends on your Slurm release: check <code>slurmrestd -d list</code> or the OpenAPI spec.</p>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="k">$(</span>scontrol<span class="w"> </span>token<span class="w"> </span><span class="nv">lifespan</span><span class="o">=</span><span class="m">3600</span><span class="k">)</span><span class="w">            </span><span class="c1"># sets SLURM_JWT (auth/jwt must be enabled)</span>
+<span class="nv">S</span><span class="o">=</span>http://head01:6820<span class="p">;</span><span class="w"> </span><span class="nv">V</span><span class="o">=</span>v0.0.42<span class="w">                     </span><span class="c1"># adjust V to your release</span>
+<span class="nv">H</span><span class="o">=(</span>-H<span class="w"> </span><span class="s2">"X-SLURM-USER-NAME: </span><span class="nv">$USER</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s2">"X-SLURM-USER-TOKEN: </span><span class="nv">$SLURM_JWT</span><span class="s2">"</span><span class="o">)</span>
+
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">H</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$S</span>/slurm/<span class="nv">$V</span>/ping<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">H</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$S</span>/slurm/<span class="nv">$V</span>/diag<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.statistics | {server_thread_count, agent_queue_size, jobs_running, jobs_pending}'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">H</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$S</span>/slurm/<span class="nv">$V</span>/nodes<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.nodes[] | "\(.name)\t\(.state | join(","))\t\(.alloc_cpus)/\(.cpus)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">H</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$S</span>/slurm/<span class="nv">$V</span>/jobs<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.jobs[] | "\(.job_id)\t\(.user_name)\t\(.job_state | join(","))\t\(.partition)"'</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">H</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$S</span><span class="s2">/slurmdb/</span><span class="nv">$V</span><span class="s2">/jobs?start_time=</span><span class="k">$(</span>date<span class="w"> </span>-d<span class="w"> </span><span class="s1">'-1 day'</span><span class="w"> </span>+%s<span class="k">)</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.jobs | length'</span><span class="w">   </span><span class="c1"># accounting via slurmdbd</span>
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">H</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$S</span>/openapi/v3<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.paths | keys[]'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-40<span class="w">     </span><span class="c1"># discover every endpoint</span>
+</code></pre></div>
+
+<p><strong>Redfish (iLO 5/6, iDRAC 9).</strong> This is the BMC's REST API, the same one iLOrest and the Redfish exporters use:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">B</span><span class="o">=</span>https://node01-ilo<span class="p">;</span><span class="w"> </span><span class="nv">R</span><span class="o">=(</span>-sk<span class="w"> </span>-u<span class="w"> </span>admin:pass<span class="o">)</span><span class="w">        </span><span class="c1"># use --cacert instead of -k in production</span>
+curl<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">R</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$B</span>/redfish/v1/<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'{RedfishVersion, Product, Vendor}'</span>
+curl<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">R</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$B</span>/redfish/v1/Systems/1<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'{PowerState, Status, BiosVersion, Model}'</span><span class="w">       </span><span class="c1"># iDRAC: Systems/System.Embedded.1</span>
+curl<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">R</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$B</span>/redfish/v1/Chassis/1/Thermal<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.Temperatures[] | "\(.Name)\t\(.ReadingCelsius)\t\(.Status.Health)"'</span>
+curl<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">R</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$B</span>/redfish/v1/Chassis/1/Power<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.PowerControl[0].PowerConsumedWatts'</span>
+curl<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">R</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$B</span>/redfish/v1/Managers/1/LogServices/IEL/Entries<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.Members[:10][] | "\(.Created)\t\(.Severity)\t\(.Message)"'</span>
+</code></pre></div>
+
+<p>For <strong>NVIDIA GPUs</strong>, scrape the DCGM exporter on port 9400 (section 2). For <strong>MariaDB</strong> behind Slurm accounting, scrape mysqld_exporter on 9104. Both are plain <code>/metrics</code> targets.</p>
+</section><section class="part" id="10-putting-it-together"><h2>10. Putting it together</h2>
+<h3 id="101-port-and-endpoint-reference">10.1 Port and endpoint reference</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Default port</th>
+<th>Liveness</th>
+<th>Readiness / deep check</th>
+<th>Self-metrics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Prometheus</td>
+<td>9090</td>
+<td><code>/-/healthy</code></td>
+<td><code>/-/ready</code>, <code>/api/v1/status/runtimeinfo</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Alertmanager</td>
+<td>9093</td>
+<td><code>/-/healthy</code></td>
+<td><code>/-/ready</code>, <code>/api/v2/status</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Pushgateway</td>
+<td>9091</td>
+<td><code>/-/healthy</code></td>
+<td><code>/-/ready</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>node_exporter</td>
+<td>9100</td>
+<td><code>/metrics</code></td>
+<td><code>node_scrape_collector_success</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>blackbox_exporter</td>
+<td>9115</td>
+<td><code>/-/healthy</code></td>
+<td><code>/probe?...</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Grafana</td>
+<td>3000</td>
+<td><code>/api/health</code></td>
+<td><code>/api/datasources/uid/&lt;uid&gt;/health</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Loki</td>
+<td>3100</td>
+<td><code>/ready</code></td>
+<td><code>/services</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Tempo</td>
+<td>3200</td>
+<td><code>/ready</code></td>
+<td><code>/status/services</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>OTel Collector</td>
+<td>4317 gRPC / 4318 HTTP</td>
+<td><code>:13133/</code></td>
+<td><code>:55679/debug/pipelinez</code></td>
+<td><code>:8888/metrics</code></td>
+</tr>
+<tr>
+<td>Grafana Alloy</td>
+<td>12345</td>
+<td><code>/-/healthy</code></td>
+<td><code>/-/ready</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Jaeger</td>
+<td>16686</td>
+<td><code>:13133/status</code> (v2)</td>
+<td><code>/api/services</code></td>
+<td><code>:8888/metrics</code></td>
+</tr>
+<tr>
+<td>Thanos Query</td>
+<td>10902</td>
+<td><code>/-/healthy</code></td>
+<td><code>/-/ready</code>, <code>/api/v1/stores</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Mimir</td>
+<td>8080</td>
+<td><code>/ready</code></td>
+<td><code>/services</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>VictoriaMetrics</td>
+<td>8428</td>
+<td><code>/health</code></td>
+<td><code>/api/v1/status/tsdb</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>Elasticsearch / OpenSearch</td>
+<td>9200</td>
+<td><code>/</code></td>
+<td><code>/_cluster/health</code></td>
+<td><code>_nodes/stats</code></td>
+</tr>
+<tr>
+<td>DCGM exporter</td>
+<td>9400</td>
+<td><code>/metrics</code></td>
+<td><code>/health</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>mysqld_exporter</td>
+<td>9104</td>
+<td><code>/metrics</code></td>
+<td><code>mysql_up</code></td>
+<td><code>/metrics</code></td>
+</tr>
+<tr>
+<td>slurmrestd</td>
+<td>6820</td>
+<td><code>/slurm/&lt;v&gt;/ping</code></td>
+<td><code>/slurm/&lt;v&gt;/diag</code></td>
+<td>n/a</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="102-one-shot-stack-health-check">10.2 One-shot stack health check</h3>
+<p>Save this as <code>obs-check.sh</code>. It exits non-zero if anything fails, so you can run it from cron, a Slurm health check, or Nagios-style tooling.</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
+<span class="c1"># obs-check.sh: probe every observability endpoint, print a status table</span>
+<span class="nb">set</span><span class="w"> </span>-u
+<span class="nv">HOST</span><span class="o">=</span><span class="si">${</span><span class="nv">1</span><span class="k">:-</span><span class="nv">localhost</span><span class="si">}</span>
+<span class="nv">TIMEOUT</span><span class="o">=</span><span class="m">5</span>
+<span class="nv">fail</span><span class="o">=</span><span class="m">0</span>
+
+check<span class="o">()</span><span class="w"> </span><span class="o">{</span><span class="w">   </span><span class="c1"># name url [expected-substring]</span>
+<span class="w">  </span><span class="nb">local</span><span class="w"> </span><span class="nv">name</span><span class="o">=</span><span class="nv">$1</span><span class="w"> </span><span class="nv">url</span><span class="o">=</span><span class="nv">$2</span><span class="w"> </span><span class="nv">want</span><span class="o">=</span><span class="si">${</span><span class="nv">3</span><span class="k">:-</span><span class="si">}</span><span class="w"> </span>body<span class="w"> </span>code<span class="w"> </span>t
+<span class="w">  </span><span class="nv">body</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-sS<span class="w"> </span>--max-time<span class="w"> </span><span class="nv">$TIMEOUT</span><span class="w"> </span>-w<span class="w"> </span><span class="s1">'\n%{http_code} %{time_total}'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$url</span><span class="s2">"</span><span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="k">)</span>
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-r<span class="w"> </span>code<span class="w"> </span>t<span class="w"> </span><span class="o">&lt;&lt;&lt;</span><span class="s2">"</span><span class="k">$(</span>tail<span class="w"> </span>-n1<span class="w"> </span><span class="o">&lt;&lt;&lt;</span><span class="s2">"</span><span class="nv">$body</span><span class="s2">"</span><span class="k">)</span><span class="s2">"</span>
+<span class="w">  </span><span class="nv">body</span><span class="o">=</span><span class="k">$(</span>sed<span class="w"> </span><span class="s1">'$d'</span><span class="w"> </span><span class="o">&lt;&lt;&lt;</span><span class="s2">"</span><span class="nv">$body</span><span class="s2">"</span><span class="k">)</span>
+<span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="nv">$code</span><span class="w"> </span><span class="o">=</span>~<span class="w"> </span>^2<span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-z<span class="w"> </span><span class="nv">$want</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span>grep<span class="w"> </span>-q<span class="w"> </span><span class="s2">"</span><span class="nv">$want</span><span class="s2">"</span><span class="w"> </span><span class="o">&lt;&lt;&lt;</span><span class="s2">"</span><span class="nv">$body</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="o">}</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%-16s OK    %3s %6.3fs  %s\n'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$name</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$code</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$t</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$url</span><span class="s2">"</span>
+<span class="w">  </span><span class="k">else</span>
+<span class="w">    </span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%-16s FAIL  %3s %6ss  %s\n'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$name</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">code</span><span class="k">:-</span><span class="nv">000</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">t</span><span class="k">:-</span><span class="p">-</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="nv">$url</span><span class="s2">"</span><span class="p">;</span><span class="w"> </span><span class="nv">fail</span><span class="o">=</span><span class="m">1</span>
+<span class="w">  </span><span class="k">fi</span>
+<span class="o">}</span>
+
+check<span class="w"> </span>prometheus<span class="w">    </span>http://<span class="nv">$HOST</span>:9090/-/ready
+check<span class="w"> </span>prom-config<span class="w">   </span>http://<span class="nv">$HOST</span>:9090/api/v1/status/runtimeinfo<span class="w"> </span><span class="s1">'"reloadConfigSuccess":true'</span>
+check<span class="w"> </span>alertmanager<span class="w">  </span>http://<span class="nv">$HOST</span>:9093/-/ready
+check<span class="w"> </span>grafana<span class="w">       </span>http://<span class="nv">$HOST</span>:3000/api/health<span class="w"> </span><span class="s1">'"database": *"ok"'</span>
+check<span class="w"> </span>node_exporter<span class="w"> </span>http://<span class="nv">$HOST</span>:9100/metrics<span class="w"> </span><span class="s1">'node_exporter_build_info'</span>
+check<span class="w"> </span>loki<span class="w">          </span>http://<span class="nv">$HOST</span>:3100/ready<span class="w"> </span><span class="s1">'ready'</span>
+check<span class="w"> </span>otelcol<span class="w">       </span>http://<span class="nv">$HOST</span>:13133/<span class="w"> </span><span class="s1">'Server available'</span>
+
+<span class="c1"># scrape-target summary straight from Prometheus</span>
+<span class="nv">down</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span>--max-time<span class="w"> </span><span class="nv">$TIMEOUT</span><span class="w"> </span>http://<span class="nv">$HOST</span>:9090/api/v1/targets<span class="w"> </span><span class="p">|</span>
+<span class="w">       </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'[.data.activeTargets[] | select(.health!="up")] | length'</span><span class="w"> </span><span class="m">2</span>&gt;/dev/null<span class="k">)</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span><span class="si">${</span><span class="nv">down</span><span class="k">:-</span><span class="nv">x</span><span class="si">}</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"targets          OK    all scrape targets up"</span>
+<span class="k">else</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"targets          FAIL  </span><span class="si">${</span><span class="nv">down</span><span class="k">:-</span><span class="p">?</span><span class="si">}</span><span class="s2"> target(s) down"</span><span class="p">;</span><span class="w"> </span><span class="nv">fail</span><span class="o">=</span><span class="m">1</span>
+<span class="w">  </span>curl<span class="w"> </span>-s<span class="w"> </span>http://<span class="nv">$HOST</span>:9090/api/v1/targets<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.data.activeTargets[] | select(.health!="up") | "   - \(.scrapeUrl): \(.lastError)"'</span>
+<span class="k">fi</span>
+<span class="nb">exit</span><span class="w"> </span><span class="nv">$fail</span>
+</code></pre></div>
+
+<p>To test end-to-end, chain the write and read sides: push a line to Loki (7.1), push a metric to Pushgateway (4.1), send a span to the Collector (8.2), then read all three back. If each one shows up, every pipe in between works.</p>
+<h3 id="103-troubleshooting-cheat-sheet">10.3 Troubleshooting cheat sheet</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Symptom</th>
+<th>curl that pinpoints it</th>
+<th>Usual fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Connection refused</code></td>
+<td><code>curl -v http://host:port/</code> + <code>ss -ltnp | grep port</code> on the host</td>
+<td>Service down, or bound to 127.0.0.1 only (<code>--web.listen-address</code>, <code>http_listen_address</code>)</td>
+</tr>
+<tr>
+<td>Hangs then times out</td>
+<td><code>curl -v --connect-timeout 3 ...</code></td>
+<td>firewalld (<code>firewall-cmd --add-port=9100/tcp --permanent</code>), routing, SELinux port label</td>
+</tr>
+<tr>
+<td>Target <code>up == 0</code>, "context deadline exceeded"</td>
+<td><code>curl -s -o /dev/null -w '%{time_total}' http://node:9100/metrics</code> from the Prometheus host</td>
+<td>Exporter too slow or too big; raise <code>scrape_timeout</code>, disable heavy collectors</td>
+</tr>
+<tr>
+<td>Target <code>up == 0</code>, "server returned HTTP status 401/403"</td>
+<td><code>curl -i</code> the scrape URL</td>
+<td>Add <code>basic_auth</code> / <code>authorization</code> to the scrape config</td>
+</tr>
+<tr>
+<td><code>bad_data: parse error</code></td>
+<td>Re-run with <code>-G --data-urlencode 'query=...'</code></td>
+<td>Braces, quotes or <code>+</code> weren't URL-encoded</td>
+</tr>
+<tr>
+<td>Config edit has no effect</td>
+<td><code>curl -s $P/api/v1/status/runtimeinfo | jq .data.reloadConfigSuccess</code></td>
+<td><code>promtool check config</code>, then reload; read <code>journalctl -u prometheus</code></td>
+</tr>
+<tr>
+<td>Alert fires in Prometheus but no notification</td>
+<td><code>curl $P/api/v1/alertmanagers</code> then <code>curl $AM/api/v2/alerts</code> then <code>curl $AM/api/v2/silences</code></td>
+<td>Wrong Alertmanager URL, alert silenced or inhibited, route doesn't match</td>
+</tr>
+<tr>
+<td>Grafana panel says "No data"</td>
+<td>Replay the panel query via <code>/api/ds/query</code>, then directly against the backend</td>
+<td>Wrong data source UID, time range, or label typo; Grafana can't reach backend (proxy access)</td>
+</tr>
+<tr>
+<td>Loki push 400 / 429</td>
+<td><code>curl -i</code> the push and read the body</td>
+<td>Out-of-order timestamps, too many labels, ingestion rate limits</td>
+</tr>
+<tr>
+<td>Prometheus memory climbing</td>
+<td><code>curl $P/api/v1/status/tsdb | jq .data.seriesCountByMetricName</code></td>
+<td>Drop high-cardinality labels with <code>metric_relabel_configs</code></td>
+</tr>
+<tr>
+<td>TLS errors</td>
+<td><code>curl -v --cacert ca.pem https://...</code>; <code>openssl s_client -connect host:port -showcerts</code></td>
+<td>Wrong CA, hostname not in SAN, expired cert (watch <code>probe_ssl_earliest_cert_expiry</code>)</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="104-a-study-path">10.4 A study path</h3>
+<ol>
+<li>Scrape node_exporter by hand and learn the four metric types from real output (section 2).</li>
+<li>Reproduce your three most-used Grafana panels as <code>/api/v1/query_range</code> calls (sections 3.5, 6.4).</li>
+<li>Walk <code>targets</code>, <code>rules</code> and <code>status/tsdb</code> until you can explain every target and the top 10 metrics by series count (3.3, 3.7, 3.9).</li>
+<li>Fire a test alert, silence it, and capture the webhook payload (section 5).</li>
+<li>Push and query a log line, then turn it into a metric query (section 7).</li>
+<li>Send a hand-built trace with a correlated log, and find both (section 8).</li>
+<li>Wrap it all in <code>obs-check.sh</code> and run it on a schedule.</li>
+</ol>
+<h3 id="sources">Sources</h3>
+<ul>
+<li><a href="https://prometheus.io/docs/prometheus/latest/querying/api/">Prometheus HTTP API</a> and <a href="https://prometheus.io/docs/prometheus/latest/management_api/">management API</a></li>
+<li><a href="https://prometheus.io/docs/instrumenting/exposition_formats/">Exposition formats</a> and <a href="https://github.com/prometheus/OpenMetrics/blob/main/specification/OpenMetrics.md">OpenMetrics spec</a></li>
+<li><a href="https://github.com/prometheus/pushgateway">Pushgateway README</a></li>
+<li><a href="https://github.com/prometheus/alertmanager/blob/main/api/v2/openapi.yaml">Alertmanager API v2 (OpenAPI spec)</a></li>
+<li><a href="https://grafana.com/docs/grafana/latest/developers/http_api/">Grafana HTTP API reference</a></li>
+<li><a href="https://grafana.com/docs/loki/latest/reference/loki-http-api/">Loki HTTP API</a></li>
+<li><a href="https://grafana.com/docs/tempo/latest/api_docs/">Tempo HTTP API</a></li>
+<li><a href="https://opentelemetry.io/docs/specs/otlp/">OTLP specification</a> and <a href="https://opentelemetry.io/docs/collector/troubleshooting/">Collector troubleshooting</a></li>
+<li><a href="https://www.jaegertracing.io/docs/latest/apis/">Jaeger APIs</a></li>
+<li><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/cluster-health.html">Elasticsearch cluster health API</a></li>
+<li><a href="https://kubernetes.io/docs/reference/using-api/health-checks/">Kubernetes API health endpoints</a></li>
+<li><a href="https://slurm.schedmd.com/rest_api.html">Slurm REST API</a></li>
+<li><a href="https://www.dmtf.org/standards/redfish">DMTF Redfish</a></li>
+</ul></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>

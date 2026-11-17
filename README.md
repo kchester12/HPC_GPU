@@ -11,6 +11,10 @@ Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-d
 |---|---|
 | [Slurm GPU and RDMA Observability](https://kchester12.github.io/HPC_GPU/slurm_gpu_rdma_observability.html) | Prometheus and Grafana design tying GPU, host, and RoCEv2 metrics to a Slurm Job ID |
 | [Slurm GPU Job Tagging Hooks](https://kchester12.github.io/HPC_GPU/slurm_gpu_job_tagging.html) | Non-blocking controller prolog/epilog scripts that post GPU allocation events to a metrics API |
+| [Getting Started: Your Monitoring Stack with curl](https://kchester12.github.io/HPC_GPU/curl_getting_started.html) | Gentle step-by-step introduction to health checks, raw metrics, and JSON APIs with curl and jq |
+| [Observability APIs with curl: Full Reference](https://kchester12.github.io/HPC_GPU/curl_observability_reference.html) | Prometheus, Alertmanager, Grafana, Loki, OpenTelemetry, Tempo, Jaeger, Elasticsearch, slurmrestd and Redfish APIs |
+| [Observability with curl: Cheat Sheet](https://kchester12.github.io/HPC_GPU/curl_observability_cheatsheet.html) | The core commands worth knowing by heart, plus helper scripts in [`scripts/`](scripts/) |
+| [From sbatch to REST: API-Driven Slurm Jobs](https://kchester12.github.io/HPC_GPU/slurm_sbatch_to_rest.html) | Submitting and monitoring Slurm jobs through slurmrestd, and staging test case data without a login shell |
 | [GPU & CUDA HPC Sysadmin Workflow](https://kchester12.github.io/HPC_GPU/gpu_cuda_hpc_runbook.html) | Bottom-up troubleshooting for Linux GPU nodes, from PCIe and driver up to scheduler isolation and hardware faults |
 | [Slurm GPU Partition Hardening Checklist](https://kchester12.github.io/HPC_GPU/slurm_gpu_hardening.html) | Security checklist for GPU nodes on Rocky Linux 9: isolation, access control, drivers, containers, monitoring, firmware |
 | [NCCL and GPUDirect RDMA](https://kchester12.github.io/HPC_GPU/nccl_gpudirect_rdma.html) | NCCL collectives, GPUDirect RDMA mechanics, and why PCIe topology decides multi-node GPU performance |

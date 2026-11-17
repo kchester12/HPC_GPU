@@ -1,0 +1,701 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>From sbatch to REST: API-Driven Slurm Jobs</title>
+<meta name="description" content="Why and how to submit and monitor Slurm jobs through slurmrestd: the mental shift, CLI-to-API mapping, a curl walkthrough, monitoring models, and staging test case data.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>From sbatch to REST: API-Driven Slurm Jobs</h1>
+<p class="sub">Why and how to submit and monitor Slurm jobs through slurmrestd: the mental shift, CLI-to-API mapping, a curl walkthrough, monitoring models, and staging test case data.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#1-why-this-feels-foreign">Why this feels foreign</a></li><li><a href="#2-same-scheduler-new-front-door">Same scheduler, new front door</a></li><li><a href="#3-whats-in-it-for-me">What's in it for me?</a></li><li><a href="#4-walkthrough-a-jobs-whole-life-with-curl">Walkthrough: a job's whole life with curl</a></li><li><a href="#5-monitoring-models-how-a-program-watches-jobs">Monitoring models: how a program "watches" jobs</a></li><li><a href="#6-common-objections-and-honest-answers">Common objections, and honest answers</a></li><li><a href="#7-turning-it-on-admin-checklist">Turning it on: admin checklist</a></li><li><a href="#8-the-operational-part-getting-files-to-and-from-your-jobs">The operational part: getting files to and from your jobs</a></li><li><a href="#sources">Sources</a></li></ol></nav>
+<div class="progress"><span id="cnt"></span><span class="bar"><i></i></span><button id="clr" type="button">Clear</button></div>
+
+<section class="part"><p>A REST API doesn't replace <code>sbatch</code>. It's a second front door to the same scheduler, built for <strong>programs</strong> rather than people. If you've spent years at a shell prompt, it's natural to wonder why anyone would want it. This guide explains the mental shift, maps the commands you already know to their API equivalents, and walks through submitting and monitoring a job with curl.</p>
+</section><section class="part" id="1-why-this-feels-foreign"><h2>1. Why this feels foreign</h2>
+<p><strong>The interactive world is built around a person at a terminal.</strong> You SSH to a login node, write a batch script, run <code>sbatch</code>, glance at <code>squeue</code>, and read <code>slurm-12345.out</code> when it finishes. Every step assumes four things:</p>
+<ul>
+<li><strong>A human is present.</strong> You read the output, notice the error, decide what to do next.</li>
+<li><strong>You are logged in.</strong> You have a Unix account, a home directory, and a shell on a cluster node.</li>
+<li><strong>Output is text for eyes.</strong> <code>squeue</code> prints columns lined up for a terminal, not for a parser.</li>
+<li><strong>State lives in your head.</strong> You remember which job IDs belong to which experiment, or keep notes.</li>
+</ul>
+<p>That model works very well for one person running jobs. It becomes awkward as soon as <strong>something other than a person</strong> needs to run jobs: a web portal, a workflow engine like Nextflow, a CI pipeline, a dashboard, or another team's application that has no business holding a shell account on your cluster.</p>
+<p><strong>The API world assumes the client is a program.</strong> A program doesn't SSH anywhere or read columns. It sends a structured request over the network ("run this script, with these resources") and gets a structured answer back (<code>{"job_id": 12345}</code>). Later it asks "what's the state of 12345?" and gets <code>{"job_state": ["COMPLETED"], "exit_code": ...}</code>. There's no screen scraping and no guessing.</p>
+<p><strong>Why it doesn't click at first:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>What HPC users expect</th>
+<th>What the API gives them</th>
+<th>Why it feels wrong</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Type a command, see a result</td>
+<td>Send JSON, get JSON back</td>
+<td>More typing for the same job; the payoff isn't visible yet</td>
+</tr>
+<tr>
+<td><code>sbatch</code> reads my script from disk</td>
+<td>The script travels <strong>inside</strong> the request as a string</td>
+<td>"Why would I put my script inside a JSON blob?"</td>
+</tr>
+<tr>
+<td>Environment is inherited from my shell</td>
+<td>Environment must be stated explicitly</td>
+<td>Jobs fail because <code>PATH</code> was never set</td>
+</tr>
+<tr>
+<td>Login proves who I am</td>
+<td>A token proves who I am on every request</td>
+<td>Tokens feel like extra ceremony</td>
+</tr>
+<tr>
+<td>I watch the job</td>
+<td>Something must <strong>poll</strong> or be notified</td>
+<td>There's no terminal to watch</td>
+</tr>
+</tbody>
+</table></div>
+<p>The key point: <strong>if you are the client, the CLI is better. If a program is the client, the API is better.</strong> Most of the confusion goes away once people stop asking "is this better than sbatch for me?" and ask "what's the best way for <em>software</em> to talk to the scheduler?"</p>
+<p>A useful comparison: you don't use a REST API to check your bank balance, you use the app. But the app itself uses the bank's API. In HPC, Open OnDemand, workflow managers and portals are the "app". The REST API is what they should be built on instead of shelling out to <code>sbatch</code> and parsing its text.</p>
+</section><section class="part" id="2-same-scheduler-new-front-door"><h2>2. Same scheduler, new front door</h2>
+<p><code>slurmrestd</code> is a small daemon that ships with Slurm. It listens for HTTP requests (port 6820 by default) and turns them into the same calls <code>sbatch</code>, <code>squeue</code> and <code>scontrol</code> make to <code>slurmctld</code>. For accounting, it talks to <code>slurmdbd</code>, just like <code>sacct</code>. Nothing about scheduling changes: same partitions, same QOS, same fairshare, same limits, same job IDs. A job submitted through the API shows up in <code>squeue</code> like any other.</p>
+<div class="highlight"><pre><span></span><code>  You at a shell ──── sbatch / squeue / scontrol ────┐
+                                                      ├──►  slurmctld  ──►  compute nodes
+  A program ──── HTTPS + JSON ──►  slurmrestd ────────┤
+                                                      └──►  slurmdbd   (sacct / accounting)
+</code></pre></div>
+
+<p><strong>Commands you know, and their API equivalents.</strong> <code>V</code> is the API version your Slurm supports (for example <code>v0.0.42</code>; find yours with <code>slurmrestd -d list</code>).</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>You type today</th>
+<th>REST call</th>
+<th>What comes back</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sbatch job.sh</code></td>
+<td><code>POST /slurm/V/job/submit</code></td>
+<td><code>job_id</code></td>
+</tr>
+<tr>
+<td><code>squeue</code></td>
+<td><code>GET /slurm/V/jobs</code></td>
+<td>every active job, as JSON</td>
+</tr>
+<tr>
+<td><code>squeue -j 12345</code> / <code>scontrol show job 12345</code></td>
+<td><code>GET /slurm/V/job/12345</code></td>
+<td>one job's full record</td>
+</tr>
+<tr>
+<td><code>scancel 12345</code></td>
+<td><code>DELETE /slurm/V/job/12345</code></td>
+<td>success or error</td>
+</tr>
+<tr>
+<td><code>scontrol update jobid=12345 ...</code></td>
+<td><code>POST /slurm/V/job/12345</code></td>
+<td>success or error</td>
+</tr>
+<tr>
+<td><code>sinfo</code> / <code>scontrol show nodes</code></td>
+<td><code>GET /slurm/V/nodes</code></td>
+<td>every node's state, CPUs, memory, GRES</td>
+</tr>
+<tr>
+<td><code>sinfo -s</code> (partitions)</td>
+<td><code>GET /slurm/V/partitions</code></td>
+<td>partition definitions and limits</td>
+</tr>
+<tr>
+<td><code>sdiag</code></td>
+<td><code>GET /slurm/V/diag</code></td>
+<td>scheduler statistics</td>
+</tr>
+<tr>
+<td><code>scontrol ping</code></td>
+<td><code>GET /slurm/V/ping</code></td>
+<td>controller up/down</td>
+</tr>
+<tr>
+<td><code>sacct -j 12345</code></td>
+<td><code>GET /slurmdb/V/job/12345</code></td>
+<td>finished job: state, exit code, usage</td>
+</tr>
+<tr>
+<td><code>sacct -S ...</code></td>
+<td><code>GET /slurmdb/V/jobs?start_time=...</code></td>
+<td>historical jobs</td>
+</tr>
+<tr>
+<td><code>sacctmgr show assoc</code></td>
+<td><code>GET /slurmdb/V/associations</code></td>
+<td>accounts, users, limits</td>
+</tr>
+</tbody>
+</table></div>
+<p>The whole API is described in an OpenAPI spec that slurmrestd serves itself at <code>/openapi/v3</code>. Tools can generate client libraries from it, and you can browse it to find any endpoint.</p>
+<p><strong>Three differences that trip people up:</strong></p>
+<ol>
+<li><strong>The script travels in the request.</strong> <code>sbatch</code> reads <code>job.sh</code> from disk. The API receives the script's text as a string inside the JSON (<code>"script": "#!/bin/bash\n..."</code>). <code>#SBATCH</code> lines inside it still work, but options are usually given as JSON fields instead.</li>
+<li><strong>No inherited environment.</strong> <code>sbatch</code> copies your shell's environment into the job. slurmrestd has no shell to copy from, so you must pass at least <code>PATH</code>. This is the number-one cause of "my API job fails but sbatch works."</li>
+<li><strong>Output files don't come back in the response.</strong> The job still writes <code>slurm-%j.out</code> to the shared filesystem. The API tells you <em>that</em> the job finished and its exit code; reading the output is a separate step (see section 8).</li>
+</ol>
+</section><section class="part" id="3-whats-in-it-for-me"><h2>3. What's in it for me?</h2>
+<p>The honest answer: <strong>for a researcher submitting a few jobs by hand, very little.</strong> The benefits show up when software submits jobs, when many jobs need tracking, or when people who shouldn't have shell access need to run work.</p>
+<h3 id="for-researchers-and-workflow-users">For researchers and workflow users</h3>
+<ul>
+<li><strong>No more parsing <code>squeue</code> text.</strong> Scripts that do <code>squeue | awk '{print $5}'</code> break when someone changes <code>SQUEUE_FORMAT</code> or Slurm changes a column. JSON fields have names, so <code>.job_state</code> is <code>.job_state</code> regardless of formatting.</li>
+<li><strong>Submit from anywhere.</strong> A laptop, a Jupyter notebook, or a lab instrument PC can submit and track jobs over HTTPS without an interactive SSH session, as long as it's allowed to reach slurmrestd.</li>
+<li><strong>Exact job IDs and states, every time.</strong> <code>sbatch</code> prints <code>Submitted batch job 12345</code> and your script greps the number out. The API returns <code>{"job_id": 12345}</code>.</li>
+<li><strong>Workflow engines get sturdier.</strong> Tools like Nextflow, Snakemake and Cromwell traditionally wrap <code>sbatch</code>/<code>squeue</code>/<code>sacct</code> and parse text. Polling <code>squeue</code> for thousands of tasks is one of the classic ways a workflow hammers <code>slurmctld</code>. A proper API client can ask for exactly the jobs it cares about.</li>
+</ul>
+<h3 id="for-admins">For admins</h3>
+<ul>
+<li><strong>Portals without shell accounts on login nodes.</strong> A web front end (a self-service portal, an EDA regression dashboard, a vendor tool) can submit as the user through a token instead of SSH-ing in and screen-scraping.</li>
+<li><strong>Monitoring and dashboards get real data.</strong> Node states, partition load, scheduler stats from <code>/diag</code>, and job counts come straight out as JSON. That's much easier to feed into Prometheus or Grafana than parsing <code>sinfo</code>.</li>
+<li><strong>One audited, controllable entry point.</strong> Every API request carries a token tied to a user, with a lifetime you set. You can put slurmrestd behind a reverse proxy with TLS, rate limits and access logs. It's easier to reason about than "any script that can SSH to a login node."</li>
+<li><strong>Automation for your own work.</strong> Draining nodes before BMC maintenance, resuming them after, and checking scheduler health from a cron job or Ansible playbook can all be HTTP calls with structured results.</li>
+</ul>
+<h3 id="for-the-organization">For the organization</h3>
+<ul>
+<li><strong>HPC becomes a service other teams can build on.</strong> A CI system can run a nightly regression on the cluster. A data pipeline can launch post-processing when files land. A Veloce emulation flow can queue its compile and run stages and report status into a dashboard. None of them needs to know how to SSH to a login node.</li>
+<li><strong>It matches how the rest of IT works.</strong> OpenStack, Kubernetes, storage arrays and BMCs (Redfish) are all driven by REST APIs. Slurm joining that model means the same tooling, skills and security patterns apply.</li>
+</ul>
+<h3 id="when-the-cli-is-still-the-better-tool">When the CLI is still the better tool</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Situation</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>You're at a terminal, submitting and checking your own jobs</td>
+<td><code>sbatch</code> / <code>squeue</code> (faster, simpler, inherits your environment)</td>
+</tr>
+<tr>
+<td>Interactive work: <code>srun --pty</code>, <code>salloc</code>, debugging on a node</td>
+<td>CLI only; the API has no interactive sessions</td>
+</tr>
+<tr>
+<td>Quick one-off admin checks</td>
+<td><code>sinfo</code>, <code>scontrol</code></td>
+</tr>
+<tr>
+<td>A program, portal, pipeline or dashboard talks to Slurm</td>
+<td>REST API</td>
+</tr>
+<tr>
+<td>Monitoring many jobs or the whole cluster from code</td>
+<td>REST API (or an exporter, see section 5)</td>
+</tr>
+<tr>
+<td>Users who shouldn't have shell access must run jobs</td>
+<td>REST API behind a portal</td>
+</tr>
+</tbody>
+</table></div>
+<p>Tell users this plainly: <strong>the API is not a replacement for what they do today.</strong> It's the right tool once the thing submitting jobs is software.</p>
+</section><section class="part" id="4-walkthrough-a-jobs-whole-life-with-curl"><h2>4. Walkthrough: a job's whole life with curl</h2>
+<p>This walkthrough mirrors what you'd do with <code>sbatch</code>, <code>squeue</code>, <code>sacct</code> and <code>scancel</code>, one step at a time. It assumes slurmrestd is running with JWT auth enabled (section 7). JSON field names have shifted between API versions, so treat these as a pattern and check your version's spec when something doesn't match.</p>
+<h3 id="step-0-set-up-your-session">Step 0: Set up your session</h3>
+<div class="highlight"><pre><span></span><code><span class="nb">export</span><span class="w"> </span><span class="nv">SR</span><span class="o">=</span>http://head01:6820<span class="w">          </span><span class="c1"># where slurmrestd listens</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">V</span><span class="o">=</span>v0.0.42<span class="w">                      </span><span class="c1"># your API version: slurmrestd -d list</span>
+<span class="nb">unset</span><span class="w"> </span>SLURM_JWT<span class="p">;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="k">$(</span>scontrol<span class="w"> </span>token<span class="w"> </span><span class="nv">lifespan</span><span class="o">=</span><span class="m">3600</span><span class="k">)</span><span class="w">   </span><span class="c1"># sets SLURM_JWT for one hour</span>
+</code></pre></div>
+
+<p><code>scontrol token</code> asks Slurm for a token proving who you are. Tokens expire after 30 minutes by default, so <code>lifespan</code> sets a longer life. Think of it as a hotel room key: limited, temporary, and tied to you.</p>
+<p>Put the headers in a reusable variable so every call carries them:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">AUTH</span><span class="o">=(</span>-H<span class="w"> </span><span class="s2">"X-SLURM-USER-NAME: </span><span class="nv">$USER</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s2">"X-SLURM-USER-TOKEN: </span><span class="nv">$SLURM_JWT</span><span class="s2">"</span><span class="o">)</span>
+</code></pre></div>
+
+<h3 id="step-1-is-the-scheduler-there-like-scontrol-ping">Step 1: Is the scheduler there? (like <code>scontrol ping</code>)</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/ping<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.pings'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">[</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"hostname"</span><span class="p">:</span><span class="w"> </span><span class="s2">"head01"</span><span class="p">,</span><span class="w"> </span><span class="nt">"pinged"</span><span class="p">:</span><span class="w"> </span><span class="s2">"UP"</span><span class="p">,</span><span class="w"> </span><span class="nt">"mode"</span><span class="p">:</span><span class="w"> </span><span class="s2">"primary"</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">]</span>
+</code></pre></div>
+
+<p>If you get HTTP 401 or 500 instead, your token is missing or expired. Run the <code>scontrol token</code> line again.</p>
+<h3 id="step-2-describe-the-job-like-writing-jobsh">Step 2: Describe the job (like writing job.sh)</h3>
+<p>With <code>sbatch</code>, your options live in <code>#SBATCH</code> lines. Here they're JSON fields, and the script itself is a string:</p>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span>&gt;<span class="w"> </span>job.json<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<span class="s">{</span>
+<span class="s">  "job": {</span>
+<span class="s">    "name": "rest-hello",</span>
+<span class="s">    "partition": "compute",</span>
+<span class="s">    "account": "hpc",</span>
+<span class="s">    "tasks": 1,</span>
+<span class="s">    "cpus_per_task": 2,</span>
+<span class="s">    "memory_per_node": { "set": true, "number": 2048 },</span>
+<span class="s">    "time_limit": { "set": true, "number": 10 },</span>
+<span class="s">    "current_working_directory": "$HOME/rest-demo",</span>
+<span class="s">    "standard_output": "$HOME/rest-demo/rest-hello-%j.out",</span>
+<span class="s">    "environment": [ "PATH=/usr/local/bin:/usr/bin:/bin", "HOME=$HOME" ],</span>
+<span class="s">    "script": "#!/bin/bash\necho Hello from \$(hostname)\nsleep 60\necho done"</span>
+<span class="s">  }</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="nv">$HOME</span>/rest-demo
+</code></pre></div>
+
+<p>How it lines up with what you know:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th><code>#SBATCH</code> line</th>
+<th>JSON field</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--job-name=rest-hello</code></td>
+<td><code>"name": "rest-hello"</code></td>
+</tr>
+<tr>
+<td><code>--partition=compute</code></td>
+<td><code>"partition": "compute"</code></td>
+</tr>
+<tr>
+<td><code>--ntasks=1 --cpus-per-task=2</code></td>
+<td><code>"tasks": 1, "cpus_per_task": 2</code></td>
+</tr>
+<tr>
+<td><code>--mem=2G</code></td>
+<td><code>"memory_per_node": {"set": true, "number": 2048}</code> (MB)</td>
+</tr>
+<tr>
+<td><code>--time=10</code></td>
+<td><code>"time_limit": {"set": true, "number": 10}</code> (minutes)</td>
+</tr>
+<tr>
+<td><code>--output=...</code></td>
+<td><code>"standard_output": "..."</code></td>
+</tr>
+<tr>
+<td>(inherited environment)</td>
+<td><code>"environment": [...]</code>, which <strong>you must set</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>The <code>{"set": true, "number": N}</code> wrapper is how newer API versions say "this value was given" as opposed to "use the default." Older versions put <code>"script"</code> at the top level, beside <code>"job"</code>; current ones accept it inside <code>"job"</code>.</p>
+<h3 id="step-3-submit-like-sbatch">Step 3: Submit (like <code>sbatch</code>)</h3>
+<div class="highlight"><pre><span></span><code><span class="nv">JOBID</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--data-binary<span class="w"> </span>@job.json<span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/submit<span class="w"> </span><span class="p">|</span><span class="w"> </span>tee<span class="w"> </span>submit.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.job_id // .result.job_id'</span><span class="k">)</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"submitted </span><span class="nv">$JOBID</span><span class="s2">"</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>submitted 48213
+</code></pre></div>
+
+<p>If <code>JOBID</code> is empty or <code>null</code>, look at the <code>errors</code> array in <code>submit.json</code>. It's the API's version of the error <code>sbatch</code> prints:</p>
+<div class="highlight"><pre><span></span><code>jq<span class="w"> </span><span class="s1">'.errors'</span><span class="w"> </span>submit.json
+</code></pre></div>
+
+<p>Slurm still applies every rule it always does: partition limits, QOS, your account association, job_submit plugins.</p>
+<h3 id="step-4-watch-it-like-squeue-j">Step 4: Watch it (like <code>squeue -j</code>)</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/<span class="nv">$JOBID</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.jobs[0] | {job_id, name, job_state, nodes, start_time: .start_time.number}'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">"job_id"</span><span class="p">:</span><span class="w"> </span><span class="mi">48213</span><span class="p">,</span><span class="w"> </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"rest-hello"</span><span class="p">,</span><span class="w"> </span><span class="nt">"job_state"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"RUNNING"</span><span class="p">],</span><span class="w"> </span><span class="nt">"nodes"</span><span class="p">:</span><span class="w"> </span><span class="s2">"node017"</span><span class="p">,</span><span class="w"> </span><span class="nt">"start_time"</span><span class="p">:</span><span class="w"> </span><span class="mi">1763398812</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<p>Notice that <code>job_state</code> is a list. A job can carry several flags at once, for example <code>["PENDING", "REQUEUED"]</code>. And <code>squeue</code> still sees it:</p>
+<div class="highlight"><pre><span></span><code>squeue<span class="w"> </span>-j<span class="w"> </span><span class="nv">$JOBID</span>
+</code></pre></div>
+
+<p>A simple polling loop, the API version of watching <code>squeue</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="k">while</span><span class="w"> </span>:<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span><span class="nv">STATE</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/<span class="nv">$JOBID</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.jobs[0].job_state | join(",")'</span><span class="k">)</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"</span><span class="k">$(</span>date<span class="w"> </span>+%T<span class="k">)</span><span class="s2"> </span><span class="nv">$STATE</span><span class="s2">"</span>
+<span class="w">  </span><span class="k">case</span><span class="w"> </span><span class="nv">$STATE</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>PENDING*<span class="p">|</span>RUNNING*<span class="p">|</span>CONFIGURING*<span class="p">|</span>COMPLETING*<span class="o">)</span><span class="w"> </span>sleep<span class="w"> </span><span class="m">15</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span>*<span class="o">)</span><span class="w"> </span><span class="k">break</span><span class="w"> </span><span class="p">;;</span><span class="w"> </span><span class="k">esac</span>
+<span class="k">done</span>
+</code></pre></div>
+
+<p>Fifteen seconds is plenty. Polling every second from many clients adds load to slurmctld, exactly like a <code>watch -n1 squeue</code> habit.</p>
+<h3 id="step-5-get-the-result-like-sacct">Step 5: Get the result (like <code>sacct</code>)</h3>
+<p>Once a job finishes, it leaves <code>slurmctld</code>'s memory after <code>MinJobAge</code> (300 seconds by default). Accounting in <code>slurmdbd</code> is the permanent record:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$SR</span>/slurmdb/<span class="nv">$V</span>/job/<span class="nv">$JOBID</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.jobs[0] | {job_id, state: .state.current, exit_code, elapsed: .time.elapsed, nodes}'</span>
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">"job_id"</span><span class="p">:</span><span class="w"> </span><span class="mi">48213</span><span class="p">,</span><span class="w"> </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"COMPLETED"</span><span class="p">],</span><span class="w"> </span><span class="nt">"exit_code"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"status"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"SUCCESS"</span><span class="p">],</span><span class="w"> </span><span class="nt">"return_code"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"set"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">"number"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="nt">"elapsed"</span><span class="p">:</span><span class="w"> </span><span class="mi">61</span><span class="p">,</span><span class="w"> </span><span class="nt">"nodes"</span><span class="p">:</span><span class="w"> </span><span class="s2">"node017"</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<p>The output itself is on the shared filesystem, just as with <code>sbatch</code>:</p>
+<div class="highlight"><pre><span></span><code>cat<span class="w"> </span><span class="nv">$HOME</span>/rest-demo/rest-hello-<span class="nv">$JOBID</span>.out
+</code></pre></div>
+
+<h3 id="step-6-cancel-like-scancel">Step 6: Cancel (like <code>scancel</code>)</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-X<span class="w"> </span>DELETE<span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/<span class="nv">$JOBID</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.errors'</span>
+</code></pre></div>
+
+<p>An empty <code>errors</code> list means it worked.</p>
+<h3 id="bonus-the-cluster-view-like-sinfo">Bonus: the cluster view (like <code>sinfo</code>)</h3>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/nodes<span class="w"> </span><span class="p">|</span>
+<span class="w">  </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.nodes[] | "\(.name)\t\(.state | join(","))\t\(.alloc_cpus)/\(.cpus) CPUs"'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>column<span class="w"> </span>-t
+</code></pre></div>
+
+<div class="highlight"><pre><span></span><code>node017  ALLOCATED  32/32 CPUs
+node018  IDLE       0/32 CPUs
+node019  DOWN,DRAIN 0/32 CPUs
+</code></pre></div>
+
+</section><section class="part" id="5-monitoring-models-how-a-program-watches-jobs"><h2>5. Monitoring models: how a program "watches" jobs</h2>
+<p>At a terminal, you watch jobs with your eyes. A program needs a strategy. There are four, and real systems usually combine two of them.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Model</th>
+<th>How it works</th>
+<th>Good for</th>
+<th>Watch out for</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Polling the live API</strong></td>
+<td>Ask <code>GET /job/{id}</code> or <code>GET /jobs</code> every N seconds</td>
+<td>Portals, workflow engines tracking their own jobs</td>
+<td>Load on slurmctld if many clients poll fast</td>
+</tr>
+<tr>
+<td><strong>Querying accounting</strong></td>
+<td>Ask <code>slurmdbd</code> (<code>/slurmdb/V/jobs</code>) for finished jobs</td>
+<td>Final state, exit codes, usage reports, chargeback</td>
+<td>Not real-time; jobs appear after they end or change state</td>
+</tr>
+<tr>
+<td><strong>Metrics (pull)</strong></td>
+<td>An exporter turns scheduler state into Prometheus metrics; Grafana graphs them</td>
+<td>Cluster-wide trends: queue depth, utilization, pending reasons</td>
+<td>Not per-job tracking; you see counts, not individual jobs</td>
+</tr>
+<tr>
+<td><strong>Events (push)</strong></td>
+<td>Slurm tells you when something happens</td>
+<td>Reacting immediately to job end or node failure</td>
+<td>Slurm has no general webhook; you build it from the pieces below</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="polling-done-politely">Polling, done politely</h3>
+<p>Polling is the model most people start with, and it's fine if you're considerate:</p>
+<ul>
+<li><strong>Ask for many jobs in one call.</strong> One <code>GET /slurm/V/jobs</code> every 30 seconds beats 500 separate <code>GET /job/{id}</code> calls. Filter in your code.</li>
+<li><strong>Use <code>update_time</code>.</strong> <code>GET /slurm/V/jobs?update_time=&lt;epoch&gt;</code> returns only jobs that changed since then, which keeps responses small.</li>
+<li><strong>Back off.</strong> Poll pending jobs slowly (60 seconds or more) and running jobs moderately (15–30 seconds). Stop polling once a job reaches a final state.</li>
+<li><strong>Fall back to accounting.</strong> If <code>GET /job/{id}</code> stops finding the job, it has aged out of slurmctld (<code>MinJobAge</code>). Ask <code>/slurmdb/V/job/{id}</code> for the final answer.</li>
+</ul>
+<p>Here's the life of a job as a poller sees it, and which source holds the truth at each stage:</p>
+<div class="highlight"><pre><span></span><code> submit ──► PENDING ──► RUNNING ──► COMPLETING ──► COMPLETED / FAILED / TIMEOUT / CANCELLED
+            │                                        │
+            └── live API: /slurm/V/job/{id} ───────┘── (gone after MinJobAge)
+                                                     │
+                          accounting: /slurmdb/V/job/{id} ──── permanent record
+</code></pre></div>
+
+<h3 id="metrics-the-cluster-wide-picture">Metrics: the cluster-wide picture</h3>
+<p>For dashboards, don't poll per job. Run a Slurm Prometheus exporter that queries Slurm periodically and exposes metrics such as jobs pending or running per partition, nodes by state, and CPU/GPU allocation. Prometheus scrapes it, and Grafana graphs and alerts on it. Several community exporters exist; newer ones read from slurmrestd instead of parsing <code>squeue</code>/<code>sinfo</code>, which is lighter on the controller.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># same curl pattern as any exporter</span>
+curl<span class="w"> </span>-s<span class="w"> </span>http://head01:&lt;exporter-port&gt;/metrics<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s1">'^slurm_(jobs|nodes|partition)'</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>head
+</code></pre></div>
+
+<h3 id="events-getting-told-instead-of-asking">Events: getting told instead of asking</h3>
+<p>Slurm doesn't call a URL when a job finishes, but you can build that behavior from parts it does have:</p>
+<ul>
+<li><strong>Job completion plugins.</strong> <code>JobCompType=jobcomp/elasticsearch</code> or <code>jobcomp/kafka</code> sends a record of every finished job to Elasticsearch or a Kafka topic. Downstream tools subscribe instead of polling.</li>
+<li><strong>An epilog or the job itself.</strong> The last line of a job script can <code>curl -X POST</code> a webhook, such as a chat channel, your portal, or Alertmanager (see the <a href="curl_observability_reference.html">observability guide</a>). This is the simplest "tell me when it's done" hook.</li>
+<li><strong><code>strigger</code>.</strong> Runs a program on events such as node down or job end.</li>
+<li><strong><code>--mail-type=END,FAIL</code>.</strong> The original push notification, still useful for humans.</li>
+</ul>
+<p>A practical combination for most sites: <strong>exporter + Prometheus for the cluster view, polling with accounting fallback for tools that track their own jobs, and a job-end webhook where something must react immediately.</strong></p>
+</section><section class="part" id="6-common-objections-and-honest-answers"><h2>6. Common objections, and honest answers</h2>
+<p><strong>"This is more typing than <code>sbatch job.sh</code>."</strong>
+True, for a person. Nobody should hand-write JSON to submit their daily jobs. The JSON is written once, inside a script, portal or workflow tool, and then reused thousands of times. Compare it to writing a Puppet manifest versus typing commands on one server.</p>
+<p><strong>"Why not just have the portal SSH in and run <code>sbatch</code>?"</strong>
+Many do, and it works, but it has costs. The portal needs SSH keys for every user (or a shared account that hides who submitted). It must parse human-oriented text that changes between versions. Every request spawns a login session on a login node. Errors come back as free text. The API gives you structured errors, per-user tokens with expiry, and no shell sessions.</p>
+<p><strong>"Isn't opening an HTTP port to the scheduler a security risk?"</strong>
+It's a different risk, and a manageable one. slurmrestd runs as an unprivileged account (never root or SlurmUser). Every request must carry a valid token, and Slurm still enforces the user's normal permissions: you can't cancel someone else's job. Keep it on an internal network, put TLS and a reverse proxy in front, and set short token lifetimes. Compare that to the current alternative of SSH access for every portal and script.</p>
+<p><strong>"My job works with <code>sbatch</code> but fails through the API."</strong>
+Almost always the environment. <code>sbatch</code> copies your shell's <code>PATH</code>, modules and variables; the API copies nothing. Set <code>environment</code> explicitly, or start the script with <code>source /etc/profile</code> and <code>module load ...</code>, just as you would for a cron job.</p>
+<p><strong>"Does this make the scheduler slower?"</strong>
+Not by itself. slurmrestd makes the same RPCs the CLI makes. What adds load is aggressive polling, from either side. A portal polling the API once a second per job is just as bad as a script running <code>squeue</code> in a tight loop. Section 5 covers polling politely.</p>
+<p><strong>"Will my users have to learn this?"</strong>
+Most won't. They keep using <code>sbatch</code>, or they use a portal that uses the API underneath. The people who benefit directly are those writing tools: workflow developers, portal builders, and admins automating the cluster.</p>
+<p><strong>"The API version changes every release. Isn't that fragile?"</strong>
+The version in the URL is a feature: a client written for <code>v0.0.42</code> keeps working while that version is supported, even after an upgrade adds <code>v0.0.43</code>. Slurm supports several versions at once and marks older ones deprecated before removing them. Plan to update clients every year or two, the same as any other API. That's still more stable than parsing CLI output, which has no contract at all.</p>
+</section><section class="part" id="7-turning-it-on-admin-checklist"><h2>7. Turning it on: admin checklist</h2>
+<p>On Rocky 8/9 with Slurm built with JWT support (libjwt), enabling the API takes about an hour in a test environment.</p>
+<h3 id="71-enable-jwt-authentication">7.1 Enable JWT authentication</h3>
+<p>Create a signing key on the controller and make it available to slurmdbd:</p>
+<div class="highlight"><pre><span></span><code>dd<span class="w"> </span><span class="k">if</span><span class="o">=</span>/dev/random<span class="w"> </span><span class="nv">of</span><span class="o">=</span>/var/spool/slurm/statesave/jwt_hs256.key<span class="w"> </span><span class="nv">bs</span><span class="o">=</span><span class="m">32</span><span class="w"> </span><span class="nv">count</span><span class="o">=</span><span class="m">1</span>
+chown<span class="w"> </span>slurm:slurm<span class="w"> </span>/var/spool/slurm/statesave/jwt_hs256.key
+chmod<span class="w"> </span><span class="m">0600</span><span class="w"> </span>/var/spool/slurm/statesave/jwt_hs256.key
+</code></pre></div>
+
+<p>Add to both <code>slurm.conf</code> and <code>slurmdbd.conf</code>:</p>
+<div class="highlight"><pre><span></span><code>AuthAltTypes=auth/jwt
+AuthAltParameters=jwt_key=/var/spool/slurm/statesave/jwt_hs256.key
+</code></pre></div>
+
+<p>Restart <code>slurmdbd</code> and <code>slurmctld</code>, then test with <code>scontrol token</code>. Keep the key away from any directory users can read: anyone holding it can mint tokens for any user.</p>
+<h3 id="72-run-slurmrestd-as-an-unprivileged-service">7.2 Run slurmrestd as an unprivileged service</h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>useradd<span class="w"> </span>-M<span class="w"> </span>-r<span class="w"> </span>-s<span class="w"> </span>/usr/sbin/nologin<span class="w"> </span>-U<span class="w"> </span>slurmrestd
+<span class="c1"># /etc/sysconfig/slurmrestd</span>
+<span class="nv">SLURMRESTD_LISTEN</span><span class="o">=</span>:6820
+<span class="c1"># optional: SLURMRESTD_DEBUG=debug</span>
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>slurmrestd
+curl<span class="w"> </span>-s<span class="w"> </span>-H<span class="w"> </span><span class="s2">"X-SLURM-USER-TOKEN: </span><span class="k">$(</span>scontrol<span class="w"> </span>token<span class="w"> </span><span class="p">|</span><span class="w"> </span>cut<span class="w"> </span>-d<span class="o">=</span><span class="w"> </span>-f2<span class="k">)</span><span class="s2">"</span><span class="w"> </span>http://localhost:6820/slurm/v0.0.42/ping<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+</code></pre></div>
+
+<p>The service account must not be root or SlurmUser. If you don't run slurmdbd, start slurmrestd with <code>-s</code> to skip the accounting endpoints. On 24.05 and later, set listen addresses only through <code>SLURMRESTD_LISTEN</code>, not in <code>ExecStart</code>. Run <code>slurmrestd -d list</code> to see which API versions your build supports.</p>
+<h3 id="73-secure-it-before-anyone-else-uses-it">7.3 Secure it before anyone else uses it</h3>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> Listen on an internal interface only; firewall port 6820 to known clients.</li>
+<li class="task-list-item"><input type="checkbox"/> Put a reverse proxy (nginx or Apache) in front for TLS, access logs and rate limiting.</li>
+<li class="task-list-item"><input type="checkbox"/> Keep token lifetimes short for people. For services, issue tokens with <code>scontrol token username=&lt;svc&gt; lifespan=...</code> from root or SlurmUser, store them like passwords, and rotate them.</li>
+<li class="task-list-item"><input type="checkbox"/> If users shouldn't mint their own tokens, set <code>disable_token_creation</code> in <code>AuthAltParameters</code> and issue tokens centrally, or use an authenticating proxy that adds <code>X-SLURM-USER-NAME</code>.</li>
+<li class="task-list-item"><input type="checkbox"/> Log and alert: scrape the reverse proxy's metrics, and watch <code>sdiag</code> RPC counts (<code>/slurm/V/diag</code>) for clients that poll too aggressively.</li>
+</ul>
+<h3 id="74-roll-it-out-in-stages">7.4 Roll it out in stages</h3>
+<ol>
+<li><strong>Admins first.</strong> Replace a couple of <code>sinfo</code>/<code>squeue</code>-parsing cron scripts with API calls, and feed <code>/diag</code> and <code>/nodes</code> into Grafana.</li>
+<li><strong>One tool second.</strong> Point a single workflow, dashboard or portal at the API, with its own service token.</li>
+<li><strong>Users last, and optionally.</strong> Publish a short guide like section 4 for the few who write their own tooling. Everyone else keeps using <code>sbatch</code>.</li>
+</ol>
+</section><section class="part" id="8-the-operational-part-getting-files-to-and-from-your-jobs"><h2>8. The operational part: getting files to and from your jobs</h2>
+<p><strong>slurmrestd moves no files, and neither does <code>sbatch</code>.</strong> Slurm schedules work. It has never copied your inputs anywhere. With the CLI you didn't notice, because you did the <code>cp</code> or <code>rsync</code> yourself from a login node onto a filesystem the compute nodes also mount, then submitted. The API removes the login-node shell, so the "cp step" needs a new home. Decide that first; everything else follows.</p>
+<p>Every HPC run has the same five data steps:</p>
+<div class="highlight"><pre><span></span><code> 1. LOCATE        2. STAGE IN           3. RUN                 4. STAGE OUT            5. RETRIEVE
+ test case   ──►  copy inputs to   ──►  job reads/writes  ──►  copy results to   ──►  client gets
+ in a store       the run's workdir     (scratch / local)      a results store         results back
+ (who?)           (who? when?)                                (who? when?)            (how?)
+</code></pre></div>
+
+<p>With <code>sbatch</code>, <strong>you</strong> did steps 2 and 5 by hand. With the API, each "who?" must be answered by software: the client, the job script, or a separate staging job.</p>
+<h3 id="81-organize-test-cases-so-they-can-be-found-by-name">8.1 Organize test cases so they can be found by name</h3>
+<p>A program can't browse directories the way you do, so give test cases a predictable layout and treat them as read-only:</p>
+<div class="highlight"><pre><span></span><code>/proj/testcases/                       ← read-only store (NetApp volume), versioned
+  regress_cpu_core/v3/
+    manifest.json                      ← list of files + sha256 checksums
+    inputs/  design.tar.gz  stimulus/  run.tcl
+/scratch/runs/                         ← one fresh directory per run, purged after N days
+  2026-11-17_regress_cpu_core_v3_&lt;jobid&gt;/
+/proj/results/                         ← kept results, one directory per run
+</code></pre></div>
+
+<p>Rules that save a lot of grief:</p>
+<ul>
+<li><strong>Never run in the test case directory.</strong> Copy or link inputs into a fresh run directory, so parallel runs can't overwrite each other.</li>
+<li><strong>Version test cases</strong> (<code>v3</code>), or pin them to a git commit (git LFS for large EDA vectors), so you can always say exactly what a run used.</li>
+<li><strong>Checksum inputs</strong> in a manifest. The job verifies them before spending hours of compute on a truncated file.</li>
+<li><strong>Name run directories after the job</strong> (<code>%j</code>), so the job record and the files can always be matched.</li>
+</ul>
+<h3 id="82-five-ways-to-do-the-cp-step">8.2 Five ways to do the "cp step"</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>Approach</th>
+<th>How inputs arrive</th>
+<th>How results return</th>
+<th>Best when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. Shared filesystem on the client</strong></td>
+<td>Client writes to an NFS/NetApp path that compute nodes also mount</td>
+<td>Client reads the same path</td>
+<td>The portal, CI runner or workflow host is inside the data center</td>
+</tr>
+<tr>
+<td><strong>B. Job stages from a central store</strong></td>
+<td>Job script copies from <code>/proj/testcases</code> into its run dir</td>
+<td>Job script copies to <code>/proj/results</code></td>
+<td>Test cases already live on the cluster; client just names which one</td>
+</tr>
+<tr>
+<td><strong>C. Object storage (S3)</strong></td>
+<td>Client uploads with curl or the <code>aws</code> CLI; job downloads</td>
+<td>Job uploads; client downloads</td>
+<td>Client is outside the cluster (laptop, cloud CI, another site)</td>
+</tr>
+<tr>
+<td><strong>D. Staging jobs + dependencies</strong></td>
+<td>A small stage-in job on a data-mover partition runs first</td>
+<td>A stage-out job runs after the compute job succeeds</td>
+<td>Big datasets; you want staging retried and accounted separately</td>
+</tr>
+<tr>
+<td><strong>E. Inline in the request</strong></td>
+<td>Small text inputs embedded in the job script itself</td>
+<td>Small outputs written to stdout</td>
+<td>Config files and parameters of a few KB; never real data</td>
+</tr>
+</tbody>
+</table></div>
+<p>Most sites end up with <strong>B as the default</strong> (the client sends a test case name, and the job does the copying), <strong>A for in-house tools</strong>, and <strong>C for anything outside</strong>.</p>
+<h3 id="83-pattern-b-in-practice-a-job-that-stages-itself">8.3 Pattern B in practice: a job that stages itself</h3>
+<p>The client sends only <em>which</em> test case to run. The job script locates it, verifies it, stages it, runs it and saves the results. This script is what goes into the <code>"script"</code> field (or lives on the cluster and is called from a one-line script):</p>
+<div class="highlight"><pre><span></span><code><span class="ch">#!/bin/bash</span>
+<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
+<span class="nv">TC</span><span class="o">=</span><span class="si">${</span><span class="nv">TESTCASE</span><span class="p">:?set TESTCASE</span><span class="si">}</span><span class="w">            </span><span class="c1"># e.g. regress_cpu_core/v3, passed via "environment"</span>
+<span class="nv">SRC</span><span class="o">=</span>/proj/testcases/<span class="nv">$TC</span>
+<span class="nv">RUN</span><span class="o">=</span>/scratch/runs/<span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span>_<span class="si">${</span><span class="nv">TC</span><span class="p">//</span><span class="se">\/</span><span class="p">/_</span><span class="si">}</span>_<span class="si">${</span><span class="nv">SLURM_JOB_ID</span><span class="si">}</span>
+<span class="nv">DEST</span><span class="o">=</span>/proj/results/<span class="si">${</span><span class="nv">TC</span><span class="p">//</span><span class="se">\/</span><span class="p">/_</span><span class="si">}</span>/<span class="si">${</span><span class="nv">SLURM_JOB_ID</span><span class="si">}</span>
+
+<span class="c1"># 1. LOCATE: fail fast with a clear exit code if it isn't there</span>
+<span class="o">[[</span><span class="w"> </span>-d<span class="w"> </span><span class="nv">$SRC</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"testcase not found: </span><span class="nv">$SRC</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">3</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+
+<span class="c1"># 2. STAGE IN: fresh run dir, then verify checksums</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$RUN</span><span class="s2">"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span><span class="s2">"</span><span class="nv">$RUN</span><span class="s2">"</span>
+rsync<span class="w"> </span>-a<span class="w"> </span><span class="s2">"</span><span class="nv">$SRC</span><span class="s2">/inputs/"</span><span class="w"> </span>./
+jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">'.files[] | "\(.sha256)  \(.path)"'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$SRC</span><span class="s2">/manifest.json"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>sha256sum<span class="w"> </span>-c<span class="w"> </span>--quiet<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="o">||</span><span class="w"> </span><span class="o">{</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"checksum mismatch"</span><span class="w"> </span>&gt;<span class="p">&amp;</span><span class="m">2</span><span class="p">;</span><span class="w"> </span><span class="nb">exit</span><span class="w"> </span><span class="m">4</span><span class="p">;</span><span class="w"> </span><span class="o">}</span>
+
+<span class="c1"># 3. RUN (I/O-heavy tools: work on node-local disk instead, see 8.5)</span>
+./run.sh<span class="w"> </span>&gt;<span class="w"> </span>run.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+
+<span class="c1"># 4. STAGE OUT: copy only what's worth keeping, record where it went</span>
+mkdir<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$DEST</span><span class="s2">"</span>
+rsync<span class="w"> </span>-a<span class="w"> </span>run.log<span class="w"> </span>reports/<span class="w"> </span><span class="s2">"</span><span class="nv">$DEST</span><span class="s2">/"</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">"{\"job\": </span><span class="nv">$SLURM_JOB_ID</span><span class="s2">, \"testcase\": \"</span><span class="nv">$TC</span><span class="s2">\", \"results\": \"</span><span class="nv">$DEST</span><span class="s2">\"}"</span><span class="w"> </span>&gt;<span class="w"> </span><span class="s2">"</span><span class="nv">$DEST</span><span class="s2">/result.json"</span>
+</code></pre></div>
+
+<p>The matching API request just names the test case:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="w"> </span><span class="nt">"job"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"regress_cpu_core"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"partition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"compute"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"current_working_directory"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/scratch/runs"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"standard_output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/scratch/runs/%j.out"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"environment"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"PATH=/usr/local/bin:/usr/bin:/bin"</span><span class="p">,</span><span class="w"> </span><span class="s2">"TESTCASE=regress_cpu_core/v3"</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"script"</span><span class="p">:</span><span class="w"> </span><span class="s2">"#!/bin/bash\nexec /proj/tools/run_testcase.sh"</span>
+<span class="p">}</span><span class="w"> </span><span class="p">}</span>
+</code></pre></div>
+
+<p>Distinct exit codes (3 = not found, 4 = bad checksum) show up in accounting (<code>/slurmdb/V/job/{id}</code> → <code>exit_code</code>), so the client can tell "your test case is missing" from "the design failed" without reading any log.</p>
+<h3 id="84-pattern-c-object-storage-when-the-client-is-outside">8.4 Pattern C: object storage when the client is outside</h3>
+<p>When the client has no access to your filesystems, S3-compatible storage (MinIO, NetApp StorageGRID, or ONTAP S3) is the REST equivalent of a shared drive. Everything stays HTTP, which matches the API model:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># client: upload inputs, then hand the job a time-limited download URL</span>
+aws<span class="w"> </span>--endpoint-url<span class="w"> </span>https://s3.internal<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>design.tar.gz<span class="w"> </span>s3://hpc-in/run-0042/design.tar.gz
+<span class="nv">URL</span><span class="o">=</span><span class="k">$(</span>aws<span class="w"> </span>--endpoint-url<span class="w"> </span>https://s3.internal<span class="w"> </span>s3<span class="w"> </span>presign<span class="w"> </span>s3://hpc-in/run-0042/design.tar.gz<span class="w"> </span>--expires-in<span class="w"> </span><span class="m">86400</span><span class="k">)</span>
+<span class="c1"># ...submit the job with "environment": [..., "INPUT_URL=$URL"]</span>
+
+<span class="c1"># job script: stage in with plain curl (no credentials needed for a presigned URL)</span>
+curl<span class="w"> </span>-fsS<span class="w"> </span>-o<span class="w"> </span>design.tar.gz<span class="w"> </span><span class="s2">"</span><span class="nv">$INPUT_URL</span><span class="s2">"</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>tar<span class="w"> </span>xzf<span class="w"> </span>design.tar.gz
+<span class="c1"># ...run, then stage out with a service credential scoped to one bucket/prefix</span>
+aws<span class="w"> </span>--endpoint-url<span class="w"> </span>https://s3.internal<span class="w"> </span>s3<span class="w"> </span>cp<span class="w"> </span>results.tar.gz<span class="w"> </span>s3://hpc-out/run-0042/
+</code></pre></div>
+
+<p>The client polls the job (section 5) and, when it shows <code>COMPLETED</code>, downloads from <code>hpc-out</code>. Presigned URLs expire, so the URL must outlive the job's queue time; issue them generously or refresh them at submit time.</p>
+<h3 id="85-pattern-d-staging-as-separate-jobs-chained-with-dependencies">8.5 Pattern D: staging as separate jobs, chained with dependencies</h3>
+<p>For large datasets, don't make a 64-node job sit idle while it copies 2 TB. Stage on a cheap data-mover partition first, and start the compute job only if staging succeeded. Dependencies work exactly as with <code>sbatch --dependency</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">IN</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>--data-binary<span class="w"> </span>@stage_in.json<span class="w">  </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/submit<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.job_id<span class="k">)</span>
+
+jq<span class="w"> </span>--arg<span class="w"> </span>d<span class="w"> </span><span class="s2">"afterok:</span><span class="nv">$IN</span><span class="s2">"</span><span class="w"> </span><span class="s1">'.job.dependency = $d'</span><span class="w"> </span>compute.json<span class="w"> </span>&gt;<span class="w"> </span>c.json
+<span class="nv">RUN</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>--data-binary<span class="w"> </span>@c.json<span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/submit<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.job_id<span class="k">)</span>
+
+jq<span class="w"> </span>--arg<span class="w"> </span>d<span class="w"> </span><span class="s2">"afterok:</span><span class="nv">$RUN</span><span class="s2">"</span><span class="w"> </span><span class="s1">'.job.dependency = $d'</span><span class="w"> </span>stage_out.json<span class="w"> </span>&gt;<span class="w"> </span>o.json
+curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s1">'Content-Type: application/json'</span><span class="w"> </span>--data-binary<span class="w"> </span>@o.json<span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/submit<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span>.job_id
+</code></pre></div>
+
+<p>If staging fails, the compute job never starts. It shows <code>DependencyNeverSatisfied</code>, and the client sees exactly which step broke.</p>
+<p><strong>Inside a job, for node-local disk:</strong> many EDA and simulation tools perform badly on NFS. Copy inputs from shared storage to fast local disk (<code>$TMPDIR</code> or <code>/tmp</code>) at the start and copy results back at the end. Across a multi-node job, <code>sbcast</code> copies a file from the job's first node to the local disk of every allocated node:</p>
+<div class="highlight"><pre><span></span><code>sbcast<span class="w"> </span>/proj/testcases/regress_cpu_core/v3/inputs/design.tar.gz<span class="w"> </span>/tmp/design.tar.gz
+srun<span class="w"> </span>tar<span class="w"> </span>xzf<span class="w"> </span>/tmp/design.tar.gz<span class="w"> </span>-C<span class="w"> </span>/tmp
+</code></pre></div>
+
+<h3 id="86-finding-a-runs-files-afterwards">8.6 Finding a run's files afterwards</h3>
+<p>The API tells you <strong>where</strong> a job ran and wrote, even though it doesn't hand you the files:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-s<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">AUTH</span><span class="p">[@]</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="nv">$SR</span>/slurm/<span class="nv">$V</span>/job/<span class="nv">$JOBID</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">'.jobs[0] | {current_working_directory, standard_output, standard_error, nodes}'</span>
+</code></pre></div>
+
+<p>After the job ages out, use the accounting record (<code>/slurmdb/V/job/{id}</code>), which also keeps the working directory. With the <code>%j</code> naming from 8.1 and the <code>result.json</code> the job writes, any tool can go from a job ID straight to its results without asking anyone.</p>
+<h3 id="87-if-your-researchers-use-nextflow">8.7 If your researchers use Nextflow</h3>
+<p>Nextflow already does all of this for you. Each task runs in its own work directory under <code>workDir</code> (point it at scratch), inputs are staged in by symlink or copy (<code>stageInMode</code>), outputs are staged out (<code>stageOutMode</code>, <code>publishDir</code>), and <code>scratch true</code> runs tasks on node-local disk. Remote inputs on S3 or HTTP are fetched automatically. The admin's job is mostly to provide the right storage: a fast shared scratch for <code>workDir</code>, node-local disk, and a results store with a purge policy. The same five steps apply; Nextflow just answers the "who?" questions automatically.</p>
+<h3 id="88-operational-checklist">8.8 Operational checklist</h3>
+<ul class="task-list">
+<li class="task-list-item"><input type="checkbox"/> Decide the default staging pattern (B, C or D) and write it down for tool builders.</li>
+<li class="task-list-item"><input type="checkbox"/> Read-only, versioned test case store with manifests and checksums.</li>
+<li class="task-list-item"><input type="checkbox"/> Scratch with a published purge policy (for example 14 days), and a separate kept-results area with quotas.</li>
+<li class="task-list-item"><input type="checkbox"/> Run directories and output files named with <code>%j</code>, so job IDs map to files.</li>
+<li class="task-list-item"><input type="checkbox"/> Standard exit codes for staging failures, so clients can tell data problems from run failures.</li>
+<li class="task-list-item"><input type="checkbox"/> For outside clients: an S3 endpoint, buckets for in/out, and service credentials scoped to a prefix.</li>
+<li class="task-list-item"><input type="checkbox"/> A data-mover partition if you stage large data as separate jobs.</li>
+</ul>
+</section><section class="part" id="sources"><h2>Sources</h2>
+<ul>
+<li><a href="https://slurm.schedmd.com/rest_quickstart.html">Slurm REST API quick start</a>: running slurmrestd, the service account, tokens, ports, and listen settings</li>
+<li><a href="https://slurm.schedmd.com/jwt.html">Slurm JWT authentication</a>: key generation, <code>AuthAltTypes</code>, token commands, and authenticating proxies</li>
+<li><a href="https://slurm.schedmd.com/rest_api.html">Slurm REST API reference</a>: every endpoint and data model, by version</li>
+<li><a href="https://slurm.schedmd.com/SC24/REST-API.pdf">SchedMD REST API presentation, SC24</a>: job submission examples</li>
+<li><a href="https://docs.aws.amazon.com/pcs/latest/userguide/slurm-rest-api-use.html">AWS PCS: using the Slurm REST API</a> and <a href="https://docs.olcf.ornl.gov/services_and_applications/s3m/api/compute.html">OLCF S3M compute API</a>: real deployments showing <code>script</code> inside <code>job</code></li>
+</ul></section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+<script>
+(()=>{const key='chk:'+location.pathname;let st={};try{st=JSON.parse(localStorage.getItem(key)||'{}')}catch(e){}
+const boxes=[...document.querySelectorAll('li.task-list-item input[type=checkbox]')];
+const bar=document.querySelector('.bar i'),cnt=document.getElementById('cnt');
+function upd(){const n=boxes.filter(b=>b.checked).length;cnt.textContent=n+' of '+boxes.length+' done';bar.style.width=(boxes.length?100*n/boxes.length:0)+'%';
+boxes.forEach(b=>b.closest('li').classList.toggle('done',b.checked))}
+boxes.forEach((b,i)=>{b.disabled=false;b.checked=!!st[i];b.addEventListener('change',()=>{st[i]=b.checked;try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}upd()})});
+document.getElementById('clr').onclick=()=>{st={};boxes.forEach(b=>b.checked=false);try{localStorage.removeItem(key)}catch(e){}upd()};upd()})();
+</script>
+</body>
+</html>
