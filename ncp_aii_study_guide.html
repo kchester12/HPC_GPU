@@ -1,0 +1,1468 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NCP-AII Study Guide: NVIDIA AI Infrastructure Professional</title>
+<meta name="description" content="A step-by-step study tutorial that follows the NCP-AII exam blueprint: bring-up, BlueField and MIG, Base Command Manager, cluster verification, and troubleshooting.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#43e3a2;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>NCP-AII Study Guide: NVIDIA AI Infrastructure Professional</h1>
+<p class="sub">A step-by-step study tutorial that follows the NCP-AII exam blueprint: bring-up, BlueField and MIG, Base Command Manager, cluster verification, and troubleshooting.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#exam-at-a-glance">Exam at a glance</a></li><li><a href="#8-week-study-plan">8-week study plan</a></li><li><a href="#build-a-practice-lab">Build a practice lab</a></li><li><a href="#domain-1-system-and-server-bring-up-31">Domain 1: System and Server Bring-up (31%)</a></li><li><a href="#domain-2-physical-layer-management-5">Domain 2: Physical Layer Management (5%)</a></li><li><a href="#domain-3-control-plane-installation-and-configuration-19">Domain 3: Control Plane Installation and Configuration (19%)</a></li><li><a href="#domain-4-cluster-test-and-verification-33">Domain 4: Cluster Test and Verification (33%)</a></li><li><a href="#domain-5-troubleshoot-and-optimize-12">Domain 5: Troubleshoot and Optimize (12%)</a></li><li><a href="#exam-day-strategy-and-self-check-questions">Exam-day strategy and self-check questions</a></li><li><a href="#official-resources-and-sources">Official resources and sources</a></li></ol></nav>
+<div class="progress"><span id="cnt"></span><span class="bar"><i></i></span><button id="clr" type="button">Clear</button></div>
+<blockquote>
+<p><strong>Scope, stated plainly:</strong> these are study notes for the NCP-AII exam, built from NVIDIA's public exam blueprint, study guide and product documentation, and drafted with AI assistance. They are not exam questions and not claims of production experience on DGX/HGX systems. I'm adding my own lab results as I work through them. Verify command flags against the docs for your release before using them.</p>
+</blockquote>
+<section class="part" id="exam-at-a-glance"><h2>1. Exam at a glance</h2>
+<p>NCP-AII is a 120-minute, 70–75 question, remotely proctored exam
+($400) that tests whether you can bring an NVIDIA AI cluster from bare
+racks to a burned-in, validated system. Two domains, bring-up (31%) and
+test/verification (33%), make up almost two-thirds of the score, so this
+tutorial spends most of its time there. <a
+href="https://www.nvidia.com/en-eu/learn/certification/ai-infrastructure-professional/">Source:
+NVIDIA exam page</a></p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Item</th>
+<th>Detail</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Exam code</td>
+<td>NCP-AII (Professional / intermediate level)</td>
+</tr>
+<tr class="even">
+<td>Format</td>
+<td>70–75 questions, 120 minutes, English, online proctored</td>
+</tr>
+<tr class="odd">
+<td>Price</td>
+<td>$400, registered through Certiverse</td>
+</tr>
+<tr class="even">
+<td>Validity</td>
+<td>2 years; recertify by retaking the exam</td>
+</tr>
+<tr class="odd">
+<td>Recommended experience</td>
+<td>2–3 years operating NVIDIA hardware in a data center</td>
+</tr>
+</tbody>
+</table></div>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>#</th>
+<th>Domain</th>
+<th>Weight</th>
+<th>≈ Questions (of 70)</th>
+<th>What it really tests</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>4</td>
+<td>Cluster Test and Verification</td>
+<td>33%</td>
+<td>~23</td>
+<td>HPL, NCCL, ClusterKit, burn-ins, cable/FW checks, storage tests</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>System and Server Bring-up</td>
+<td>31%</td>
+<td>~22</td>
+<td>BMC/OOB/TPM, firmware, power/cooling, cabling, transceivers, GPU
+install</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Control Plane Installation and Configuration</td>
+<td>19%</td>
+<td>~13</td>
+<td>Base Command Manager, HA, Slurm + Enroot + Pyxis, drivers, container
+toolkit, NGC CLI</td>
+</tr>
+<tr class="even">
+<td>5</td>
+<td>Troubleshoot and Optimize</td>
+<td>12%</td>
+<td>~8</td>
+<td>Fault isolation, part replacement, BIOS/OS tuning on AMD and Intel,
+storage tuning</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>Physical Layer Management</td>
+<td>5%</td>
+<td>~4</td>
+<td>BlueField DPU configuration, MIG</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>How to use this tutorial.</strong> Each domain section below
+follows the blueprint bullets in order. Every step has three parts: the
+concept to know, the commands to practise, and what "good" looks like.
+Work through the steps on real or cloud hardware where you can, and tick
+the checklist at the end of each domain. Command syntax shown here
+reflects current NVIDIA tooling; always confirm version-specific flags
+against the docs for the release you use.</p>
+<p><strong>Where you already stand.</strong> As an HPC admin who runs
+Slurm, Rocky Linux, iLO/iDRAC automation and storage, you already cover
+much of Domains 3 and 5. The new ground is likely NVIDIA-specific: HGX
+firmware, NVLink/NVSwitch, InfiniBand/Spectrum-X fabric tools,
+BlueField, Base Command Manager and the burn-in tooling.</p>
+</section><section class="part" id="8-week-study-plan"><h2>2. 8-week study plan</h2>
+<p>Plan on about 8–10 hours a week for 8 weeks, front-loading the two
+heavy domains (bring-up and verification) and saving the last week for
+review. Adjust the week count to your own gaps; the order matters more
+than the pace.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Week</th>
+<th>Focus</th>
+<th>Hands-on goal</th>
+<th>Checkpoint</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>Orientation + Domain 1 part A: deployment sequence, AI-factory
+topologies (rail-optimized, fat-tree, compute/storage/OOB/in-band
+fabrics)</td>
+<td>Read the DGX SuperPOD reference architecture; sketch a 4-SU fabric
+from memory</td>
+<td>Can explain why each GPU's NIC goes to a different leaf (rail)</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>Domain 1 part B: BMC/OOB/TPM, firmware (HGX), power/cooling,
+nvidia-smi</td>
+<td>Configure a BMC via Redfish; run <code>nvidia-smi -q</code>; read an
+HGX firmware inventory</td>
+<td>Can list the firmware components on an HGX baseboard and the update
+order</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>Domain 1 part C + Domain 2: cables/transceivers, GPU install,
+storage init; BlueField, MIG</td>
+<td>Run <code>mlxlink</code>/<code>mlxcables</code>; flip a BlueField-3
+between DPU and NIC mode; create MIG instances</td>
+<td>Can read <code>mlxlink</code> BER output and create a 3g.40gb MIG
+layout</td>
+</tr>
+<tr class="even">
+<td>4</td>
+<td>Domain 3: Base Command Manager install + HA, categories,
+interfaces</td>
+<td>Install BCM head node in a lab VM; add a category and a node; set up
+a passive head</td>
+<td>Can explain <code>cmsh</code> modes (device, category,
+softwareimage) and HA failover</td>
+</tr>
+<tr class="odd">
+<td>5</td>
+<td>Domain 3: Slurm/Enroot/Pyxis, GPU + DOCA drivers, Container Toolkit,
+Docker, NGC CLI</td>
+<td>Run <code>srun --container-image=nvcr.io#nvidia/pytorch:...</code>;
+<code>docker run --gpus all</code></td>
+<td>One container job runs end-to-end through Slurm + Pyxis</td>
+</tr>
+<tr class="even">
+<td>6</td>
+<td>Domain 4 part A: DCGM diag, HPL, single-node NCCL, NVLink/NVSwitch
+checks</td>
+<td>Run <code>dcgmi diag -r 3</code>, <code>all_reduce_perf</code> on 8
+GPUs, an HPL container</td>
+<td>You know the expected bus bandwidth range for your GPU
+generation</td>
+</tr>
+<tr class="odd">
+<td>7</td>
+<td>Domain 4 part B + Domain 5: cable/FW verification, ClusterKit,
+multi-node NCCL, burn-ins, storage tests; fault isolation and
+tuning</td>
+<td>Run ClusterKit on 2+ nodes; <code>ibdiagnet</code>; fio/gdsio;
+practise a GPU-fault triage</td>
+<td>Can map an Xid code to a likely action and read a ClusterKit heat
+map</td>
+</tr>
+<tr class="even">
+<td>8</td>
+<td>Review and timed practice</td>
+<td>Re-run every checklist below; write your own 70-question mock from
+the blueprint</td>
+<td>Every checklist item ticked; weak areas re-studied</td>
+</tr>
+</tbody>
+</table></div>
+</section><section class="part" id="build-a-practice-lab"><h2>3. Build a practice lab</h2>
+<p>You can rehearse roughly 70% of the blueprint with one VM host plus
+rented GPU time; the remaining hardware tasks (cabling, transceivers,
+part swaps) are best learned from the DGX service manuals and any real
+HGX gear you can touch at work. BCM is now free for systems with up to
+eight accelerators on clusters of any size, which makes a home lab
+practical. <a
+href="https://docs.nvidia.com/base-command-manager/bcm-licensing-and-support/">NVIDIA
+BCM licensing</a></p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Lab tier</th>
+<th>What it gives you</th>
+<th>Blueprint coverage</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>A. KVM/VMware host, 3–4 VMs (no GPU)</td>
+<td>BCM 11 head node + passive head + 2 diskless compute nodes; Slurm,
+Enroot, Pyxis; HA failover drills</td>
+<td>Domain 3 (most), HA, categories, software images</td>
+</tr>
+<tr class="even">
+<td>B. Rented 8-GPU node (H100/H200 SXM)</td>
+<td>nvidia-smi, NVLink topology, MIG, DCGM diag, HPL, single-node NCCL,
+Docker + Container Toolkit, NGC CLI</td>
+<td>Domains 1.6–1.10, 2.2, 3.4–3.7, 4.1–4.3</td>
+</tr>
+<tr class="odd">
+<td>C. Rented 2-node cluster with InfiniBand</td>
+<td>Multi-node NCCL, ClusterKit, ib_write_bw/lat, mlxlink,
+ibdiagnet</td>
+<td>Domains 4.4–4.11</td>
+</tr>
+<tr class="even">
+<td>D. Real hardware at work (HGX/DGX, BlueField, Quantum/Spectrum
+switches)</td>
+<td>BMC/Redfish, firmware bundles, BFB install, transceiver FW, part
+replacement</td>
+<td>Domains 1.3–1.5, 1.8, 2.1, 4.6–4.8, 5.x</td>
+</tr>
+<tr class="odd">
+<td>E. NVIDIA Academy courses</td>
+<td>Hosted labs: bring up an AI cluster with BCM; BlueField
+bring-up</td>
+<td>Fills gaps from tiers B–D</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Steps to stage the lab</strong></p>
+<ol type="1">
+<li>Download the BCM 11 ISO and request the free license through the
+NVIDIA licensing portal.</li>
+<li>Create a lab network on your hypervisor: one <em>internalnet</em>
+(provisioning) and one <em>externalnet</em>, plus an optional
+<em>ipminet</em> if you emulate a BMC with <code>vbmc</code>
+(virtualbmc).</li>
+<li>Install the head node from the ISO (Section 6 below covers the
+wizard), then PXE-boot two empty VMs as compute nodes.</li>
+<li>Register at <a href="https://ngc.nvidia.com">ngc.nvidia.com</a>,
+generate an API key, and note it for the NGC CLI and
+<code>nvcr.io</code> pulls.</li>
+<li>Book GPU time in short, scripted bursts: keep a single
+<code>lab.sh</code> that installs drivers, toolkit and tests, so each
+paid session starts at the test, not the setup.</li>
+<li>Keep a lab notebook of every command and its output; the exam asks
+what output <em>means</em>, not just which command to run.</li>
+</ol>
+</section><section class="part" id="domain-1-system-and-server-bring-up-31"><h2>4. Domain 1: System and Server Bring-up (31%)</h2>
+<p>This domain is about taking a racked HGX/DGX node from "powered off"
+to "proven ready for workloads". Learn the order of operations cold;
+many questions are "what do you do next?"</p>
+<h3 id="step-11--learn-the-deployment-and-validation-sequence">Step 1.1
+— Learn the deployment and validation sequence</h3>
+<p>Memorise this order; each stage gates the next.</p>
+<ol type="1">
+<li><strong>Site readiness</strong>: power circuits, PDUs, cooling
+capacity, floor loading, rack layout.</li>
+<li><strong>Rack and stack</strong>: install nodes, switches, PDUs;
+label everything.</li>
+<li><strong>Cable OOB first</strong>, then in-band management, storage
+fabric, compute (East-West) fabric.</li>
+<li><strong>Power on and configure BMCs</strong> (IP, credentials, NTP,
+services).</li>
+<li><strong>Baseline firmware</strong> on servers, GPU trays, NICs/DPUs,
+switches, transceivers.</li>
+<li><strong>Provision the control plane</strong> (BCM head nodes, OS
+images, Slurm).</li>
+<li><strong>Configure fabrics</strong> (UFM for InfiniBand, NetQ/Cumulus
+for Spectrum Ethernet).</li>
+<li><strong>Single-node validation</strong>: nvidia-smi, DCGM diag, HPL,
+NCCL on NVLink.</li>
+<li><strong>Multi-node validation</strong>: cable/BER checks,
+ClusterKit, NCCL across the fabric, storage tests.</li>
+<li><strong>Burn-in</strong> (NCCL, HPL, NeMo), then hand over to
+users.</li>
+</ol>
+<h3 id="step-12--understand-ai-factory-network-topologies">Step 1.2 —
+Understand AI-factory network topologies</h3>
+<p>An NVIDIA reference cluster has four separate networks. Know what
+each carries and why they are kept apart.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Network</th>
+<th>Typical tech</th>
+<th>Carries</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Compute (East-West)</td>
+<td>InfiniBand NDR/XDR (Quantum) or Spectrum-X Ethernet, one 400G NIC
+per GPU</td>
+<td>GPU-to-GPU collective traffic (NCCL)</td>
+</tr>
+<tr class="even">
+<td>Storage (North-South)</td>
+<td>200/400G Ethernet or IB, often via BlueField-3</td>
+<td>Dataset reads, checkpoint writes</td>
+</tr>
+<tr class="odd">
+<td>In-band management</td>
+<td>100G/25G Ethernet</td>
+<td>Provisioning (PXE), SSH, Slurm, monitoring</td>
+</tr>
+<tr class="even">
+<td>Out-of-band (OOB)</td>
+<td>1G Ethernet</td>
+<td>BMCs, switch management ports, PDUs</td>
+</tr>
+</tbody>
+</table></div>
+<p>Key ideas the exam expects:</p>
+<ul>
+<li><strong>Rail-optimised fat-tree</strong>: GPU <em>n</em> in every
+node connects to leaf switch <em>n</em> of its scalable unit (SU).
+Same-rank GPUs talk through one switch hop, which suits NCCL rings and
+trees.</li>
+<li><strong>Non-blocking (1:1)</strong>: leaf uplink bandwidth equals
+downlink bandwidth for the compute fabric.</li>
+<li><strong>Scalable unit</strong>: in DGX SuperPOD H100 designs an SU
+is 32 nodes; clusters scale by adding SUs and spine/core layers.</li>
+<li><strong>NVLink domain</strong> (inside a node, or across a rack on
+GB200 NVL72) is separate from the InfiniBand/Ethernet fabric.</li>
+</ul>
+<p>Practise: draw a 2-SU rail-optimised fabric and count leaf and spine
+ports.</p>
+<h3 id="step-13--configure-bmc-oob-and-tpm">Step 1.3 — Configure BMC,
+OOB and TPM</h3>
+<ol type="1">
+<li>Give the BMC a static address and change default credentials:</li>
+</ol>
+<pre class="bash"><code>ipmitool lan set 1 ipsrc static
+ipmitool lan set 1 ipaddr 10.0.0.21
+ipmitool lan set 1 netmask 255.255.255.0
+ipmitool lan set 1 defgw ipaddr 10.0.0.1
+ipmitool user list 1
+ipmitool user set password 2 &#39;&lt;new-password&gt;&#39;</code></pre>
+<ol start="2" type="1">
+<li>Confirm Redfish works, since NVIDIA firmware tools use it:</li>
+</ol>
+<pre class="bash"><code>curl -sk -u admin:&lt;pw&gt; https://&lt;bmc-ip&gt;/redfish/v1/Systems | jq
+curl -sk -u admin:&lt;pw&gt; https://&lt;bmc-ip&gt;/redfish/v1/UpdateService/FirmwareInventory | jq</code></pre>
+<ol start="3" type="1">
+<li>Harden: set NTP and syslog targets, disable unused services (IPMI
+over LAN if Redfish-only), put BMCs on the isolated OOB network.</li>
+<li><strong>TPM</strong>: enable TPM 2.0 in BIOS, then verify from the
+OS with <code>tpm2_getcap properties-fixed</code> and
+<code>dmesg | grep -i tpm</code>. Know that TPM backs Secure Boot
+measurements, disk-encryption keys and attestation.</li>
+</ol>
+<p>Good looks like: BMC reachable only on OOB, non-default credentials,
+Redfish returns the system and firmware inventory.</p>
+<h3
+id="step-14--perform-firmware-upgrades-including-hgx-and-detect-faults">Step
+1.4 — Perform firmware upgrades (including HGX) and detect faults</h3>
+<p>On DGX/HGX H100/H200/B200 the tool is <strong>nvfwupd</strong>, which
+drives the BMC over Redfish. A system has two packages: a
+motherboard-tray package (BMC, BIOS, CPLD, PSU, NVMe) and a GPU-tray
+package (HGX: GPU VBIOS, NVSwitch, HMC, ERoT, FPGA). <a
+href="https://docs.nvidia.com/dgx/dgxh100-fw-update-guide/sequence.html">DGX
+H100 firmware update steps</a></p>
+<ol type="1">
+<li>Compare installed versus packaged versions:</li>
+</ol>
+<pre class="bash"><code>nvfwupd -t ip=&lt;bmc&gt; user=&lt;u&gt; password=&lt;p&gt; show_version \
+  -p nvfw_DGX_&lt;date&gt;.fwpkg nvfw_DGX-HGX-H100-H200x8_&lt;date&gt;.fwpkg</code></pre>
+<ol start="2" type="1">
+<li>Update the BMC first, reset the BMC, then the rest of the
+motherboard tray:</li>
+</ol>
+<pre class="bash"><code>nvfwupd -t ip=&lt;bmc&gt; user=&lt;u&gt; password=&lt;p&gt; update_fw -p &lt;mb-tray&gt;.fwpkg -y -s update_bmc.json
+nvfwupd -t ip=&lt;bmc&gt; user=&lt;u&gt; password=&lt;p&gt; update_fw -p &lt;mb-tray&gt;.fwpkg -y -s mb_tray.json</code></pre>
+<ol start="3" type="1">
+<li>Update the GPU tray, then track the task:</li>
+</ol>
+<pre class="bash"><code>nvfwupd -t ip=&lt;bmc&gt; user=&lt;u&gt; password=&lt;p&gt; update_fw -p &lt;gpu-tray&gt;.fwpkg -y -s gpu_tray.json
+nvfwupd -t ip=&lt;bmc&gt; user=&lt;u&gt; password=&lt;p&gt; show_update_progress -i &lt;task-id&gt;</code></pre>
+<ol start="4" type="1">
+<li><strong>Activate</strong>: most components need a BMC reset and/or
+an AC power cycle; read the release notes for the required activation
+and any intermediate ("transition") package.</li>
+<li>At cluster scale, BCM can drive nvfwupd across many nodes.</li>
+</ol>
+<p><strong>Fault detection</strong> sources: BMC System Event Log
+(<code>ipmitool sel elist</code>), Redfish event log,
+<code>nvsm show health</code> on DGX, <code>nvidia-smi -q</code>
+(retired pages, ECC), kernel <code>dmesg</code> Xid messages, and ERoT
+status in the firmware inventory.</p>
+<h3 id="step-15--validate-power-and-cooling-parameters">Step 1.5 —
+Validate power and cooling parameters</h3>
+<ul>
+<li>Confirm PSU count, redundancy and input feeds; a DGX H100 draws up
+to about 10.2 kW, so check PDU circuits against nameplate power.</li>
+<li>Read sensors:</li>
+</ul>
+<pre class="bash"><code>ipmitool sdr type &quot;Power Supply&quot;
+ipmitool sensor | grep -Ei &#39;inlet|temp|fan|pwr&#39;
+nvidia-smi -q -d POWER,TEMPERATURE,PERFORMANCE</code></pre>
+<ul>
+<li>Watch for <code>HW Slowdown</code>, <code>HW Power Brake</code> or
+<code>HW Thermal Slowdown</code> in the clocks-throttle reasons; any of
+these during a test means a power or cooling problem.</li>
+<li>For liquid-cooled systems (GB200 NVL72), also check CDU flow, inlet
+coolant temperature and leak sensors.</li>
+<li>Know <code>nvidia-smi -pl &lt;watts&gt;</code> (power cap) and that
+you should not cap GPUs during acceptance tests.</li>
+</ul>
+<h3 id="step-16--install-gpu-based-servers-and-use-nvidia-smi-smi">Step
+1.6 — Install GPU-based servers and use nvidia-smi (SMI)</h3>
+<p>The "SMI" here is the NVIDIA System Management Interface. Commands to
+know cold:</p>
+<pre class="bash"><code>nvidia-smi                      # summary
+nvidia-smi -L                   # list GPUs and UUIDs
+nvidia-smi topo -m              # GPU/NIC/CPU affinity matrix (NV#, PIX, PXB, SYS)
+nvidia-smi nvlink --status      # per-link NVLink state and speed
+nvidia-smi -q -d ECC,PAGE_RETIREMENT,ROW_REMAPPER
+nvidia-smi -pm 1                # persistence mode (or run nvidia-persistenced)
+systemctl status nvidia-fabricmanager   # needed on NVSwitch (HGX) systems</code></pre>
+<p>On HGX systems with NVSwitch, CUDA jobs fail until
+<strong>nvidia-fabricmanager</strong> is running and its version matches
+the driver.</p>
+<h3 id="step-17--validate-the-installed-hardware">Step 1.7 — Validate
+the installed hardware</h3>
+<p>Check that what the BOM says is what the OS sees:</p>
+<pre class="bash"><code>lspci | grep -i nvidia | wc -l           # GPUs + NVSwitches
+lspci -vvv -s &lt;bdf&gt; | grep -E &#39;LnkCap|LnkSta&#39;   # PCIe gen and width match
+nvidia-smi -L                             # expect 8 GPUs on HGX
+ibstat ; ibv_devinfo                      # ConnectX/BlueField ports Active, rate 400
+mst start ; mst status -v                 # Mellanox devices visible
+nvsm show health                          # DGX only
+dcgmi discovery -l                        # DCGM sees every GPU</code></pre>
+<p>A downgraded PCIe link (for example x8 instead of x16, or Gen4
+instead of Gen5) is a classic finding.</p>
+<h3
+id="step-18--describe-and-validate-cable-types-and-transceivers">Step
+1.8 — Describe and validate cable types and transceivers</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Type</th>
+<th>Reach</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>DAC (passive copper)</td>
+<td>Up to ~2–3 m at 400G</td>
+<td>Cheapest, no power; within a rack</td>
+</tr>
+<tr class="even">
+<td>ACC/AEC (active copper)</td>
+<td>A little longer than DAC</td>
+<td>Signal conditioning in the connector</td>
+</tr>
+<tr class="odd">
+<td>AOC (active optical cable)</td>
+<td>Tens of metres</td>
+<td>Fixed-length fibre with built-in optics</td>
+</tr>
+<tr class="even">
+<td>Transceiver + fibre</td>
+<td>Multimode SR (~50 m), single-mode DR/FR (500 m–2 km)</td>
+<td>MPO for parallel optics, LC duplex for FR; OSFP on NDR/XDR, QSFP112
+on some NICs</td>
+</tr>
+</tbody>
+</table></div>
+<p>On Quantum-2 switches, one twin-port OSFP cage carries 2 × 400G NDR
+ports. Validate with:</p>
+<pre class="bash"><code>mlxlink -d &lt;mst-dev&gt; -m        # module type, vendor, part number, FW, temperature, power
+mlxlink -d &lt;mst-dev&gt; -c        # counters: raw/effective BER, symbol errors
+mlxcables                      # cable EEPROM details</code></pre>
+<p>Always inspect and clean fibre end-faces before seating optics; dirty
+connectors are the top cause of high BER.</p>
+<h3 id="step-19--install-physical-gpus">Step 1.9 — Install physical
+GPUs</h3>
+<ul>
+<li><strong>SXM (HGX)</strong>: GPUs sit on the HGX baseboard;
+replacement is a field-service procedure with torque specs and
+thermal-interface handling. Follow the system service manual.</li>
+<li><strong>PCIe</strong>: place cards so each GPU shares a PCIe switch
+or CPU socket with its NIC (GPUDirect RDMA affinity); use correct
+auxiliary power cables; fit NVLink bridges where supported (for example
+H100 NVL pairs).</li>
+<li>Always: ESD protection, power off and drain, record serial numbers,
+update the asset inventory.</li>
+</ul>
+<h3 id="step-110--validate-hardware-operation-for-workloads">Step 1.10 —
+Validate hardware operation for workloads</h3>
+<pre class="bash"><code>dcgmi diag -r 3                 # level 3: ~30 min, PCIe, memory, stress, NVLink checks
+nvbandwidth                     # host-device and device-device bandwidth
+lsmod | grep -E &#39;nvidia_peermem|nv_peer_mem&#39;   # GPUDirect RDMA module loaded</code></pre>
+<p>Also confirm <code>nvidia-smi topo -m</code> shows each GPU paired
+with a NIC at PIX/PXB, not SYS.</p>
+<h3
+id="step-111--configure-initial-parameters-for-third-party-storage">Step
+1.11 — Configure initial parameters for third-party storage</h3>
+<p>Certified storage partners include DDN, VAST, WEKA, NetApp, Pure and
+IBM Storage Scale. The initial work is client-side:</p>
+<ol type="1">
+<li>Install the vendor client (Lustre/EXAScaler, WEKA, GPFS) or
+configure NFS over RDMA.</li>
+<li>Put storage traffic on the storage fabric, not the compute fabric;
+set MTU 9000 end to end on Ethernet.</li>
+<li>Tune mounts: for NFS use <code>nconnect=16</code> and
+<code>proto=rdma</code> where supported.</li>
+<li>Enable <strong>GPUDirect Storage</strong>: install
+<code>nvidia-fs</code>, then check with
+<code>/usr/local/cuda/gds/tools/gdscheck -p</code>.</li>
+<li>Record baseline throughput with fio or gdsio (used again in Domain
+4).</li>
+</ol>
+<h3 id="domain-1-checklist">Domain 1 checklist</h3>
+<ul class="task-list">
+<li class="task-list-item"><label><input type="checkbox" disabled />I can recite the 10-stage bring-up
+order</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can draw a rail-optimised fat-tree
+and name the four networks</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have configured a BMC by ipmitool
+and Redfish</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can explain motherboard-tray
+versus GPU-tray firmware and the nvfwupd flow</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I know which nvidia-smi throttle
+reasons signal power or cooling problems</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can read
+<code>nvidia-smi topo -m</code> and spot a PCIe link
+downgrade</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can match DAC/AOC/transceiver to
+distance and read mlxlink BER output</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run
+<code>dcgmi diag -r 3</code> and <code>gdscheck -p</code></label></li>
+</ul>
+</section><section class="part" id="domain-2-physical-layer-management-5"><h2>5. Domain 2: Physical Layer Management (5%)</h2>
+<p>Only about four questions, but both topics recur in Domains 3 and 4,
+so learn them properly once.</p>
+<h3 id="step-21--configure-and-manage-a-bluefield-network-platform">Step
+2.1 — Configure and manage a BlueField network platform</h3>
+<p><strong>Concepts.</strong> A BlueField-3 is a ConnectX-7 NIC plus Arm
+cores, memory and its own BMC. It runs in one of two main modes:</p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Mode</th>
+<th>What it means</th>
+<th>Typical use</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>DPU mode (default)</td>
+<td>Arm cores own the NIC; host traffic passes through the Arm's virtual
+switch (OVS/DOCA)</td>
+<td>Storage offload, security, multi-tenant isolation</td>
+</tr>
+<tr class="even">
+<td>NIC mode</td>
+<td>Arm cores out of the data path; behaves like a ConnectX NIC</td>
+<td>Simple high-speed NIC, East-West compute links on SuperNIC
+parts</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Steps.</strong></p>
+<ol type="1">
+<li>Find the device and check firmware from the host:</li>
+</ol>
+<pre class="bash"><code>mst start &amp;&amp; mst status -v
+flint -d /dev/mst/mt41692_pciconf0 q          # firmware version, PSID
+mlxfwmanager --query</code></pre>
+<ol start="2" type="1">
+<li>Check or change the operating mode, then power-cycle the host:</li>
+</ol>
+<pre class="bash"><code>mlxconfig -d /dev/mst/mt41692_pciconf0 q | grep -i INTERNAL_CPU
+mlxconfig -d /dev/mst/mt41692_pciconf0 s INTERNAL_CPU_OFFLOAD_ENGINE=1   # NIC mode
+mlxconfig -d /dev/mst/mt41692_pciconf0 s INTERNAL_CPU_OFFLOAD_ENGINE=0   # DPU mode</code></pre>
+<ol start="3" type="1">
+<li>Install the DPU OS (a <strong>BFB</strong> bundle containing Ubuntu,
+DOCA runtime and NIC firmware). Two routes:
+<ul>
+<li>From the host over RShim: install <code>rshim</code>, then
+<code>bfb-install --bfb &lt;bundle&gt;.bfb --rshim rshim0</code>.</li>
+<li>From the DPU's BMC over Redfish (the method the study guide calls
+"BFB from BMC"), which needs no host OS.</li>
+</ul></li>
+<li>Reach the Arm OS over the RShim virtual Ethernet
+(<code>tmfifo_net0</code>, default 192.168.100.2) or the DPU's 1G OOB
+port; default user is <code>ubuntu</code>, and you set its password on
+first login.</li>
+<li>On the host, install <strong>DOCA-Host</strong> (the successor to
+MLNX_OFED) so the host has the right drivers and tools.</li>
+<li>Confirm: <code>ibv_devinfo</code> shows ports Active; on the DPU,
+<code>ovs-vsctl show</code> lists the bridges; <code>bfvcheck</code>
+reports component versions.</li>
+</ol>
+<h3 id="step-22--configure-mig-for-ai-and-hpc">Step 2.2 — Configure MIG
+for AI and HPC</h3>
+<p><strong>Concepts.</strong> Multi-Instance GPU splits one
+A100/A30/H100/H200/B200 into up to seven isolated instances, each with
+dedicated SMs, memory and L2 cache slices. A <strong>GPU instance
+(GI)</strong> owns memory; a <strong>compute instance (CI)</strong>
+inside it owns SMs. AI use: many small inference or notebook jobs. HPC
+use: fault and QoS isolation for many small jobs sharing a node. MIG
+instances cannot use NVLink peer-to-peer with each other.</p>
+<p><strong>Steps (H100 80GB example).</strong></p>
+<ol type="1">
+<li>Stop GPU clients (DCGM, persistence jobs), then enable MIG mode and
+reset:</li>
+</ol>
+<pre class="bash"><code>nvidia-smi -i 0 -mig 1
+nvidia-smi -i 0 -r            # or reboot if the reset is refused</code></pre>
+<ol start="2" type="1">
+<li>List the profiles the GPU offers:</li>
+</ol>
+<pre class="bash"><code>nvidia-smi mig -lgip          # e.g. 1g.10gb, 2g.20gb, 3g.40gb, 4g.40gb, 7g.80gb</code></pre>
+<ol start="3" type="1">
+<li>Create GPU instances and their default compute instances in one
+go:</li>
+</ol>
+<pre class="bash"><code>nvidia-smi mig -i 0 -cgi 3g.40gb,3g.40gb -C
+nvidia-smi -L                 # each MIG device now has its own UUID</code></pre>
+<ol start="4" type="1">
+<li>Tear down in reverse order: <code>nvidia-smi mig -dci</code> then
+<code>nvidia-smi mig -dgi</code>, then
+<code>nvidia-smi -i 0 -mig 0</code>.</li>
+<li>Expose MIG to schedulers: in Slurm set <code>AutoDetect=nvml</code>
+in <code>gres.conf</code> so each MIG slice becomes a GRES; in
+Kubernetes the GPU Operator's MIG manager applies layouts with a
+<em>single</em> or <em>mixed</em> strategy. For repeatable layouts use
+<code>nvidia-mig-parted</code> with a YAML config.</li>
+</ol>
+<h3 id="domain-2-checklist">Domain 2 checklist</h3>
+<ul class="task-list">
+<li class="task-list-item"><label><input type="checkbox" disabled />I can explain DPU mode versus NIC
+mode and switch them with mlxconfig</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I know both BFB install routes
+(RShim and BMC/Redfish)</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can enable MIG, create a 3g + 3g
+layout, and remove it</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I know the GI/CI distinction and the
+7-instance limit</label></li>
+</ul>
+</section><section class="part" id="domain-3-control-plane-installation-and-configuration-19"><h2>6. Domain 3: Control Plane Installation and Configuration (19%)</h2>
+<p>This domain is NVIDIA Base Command Manager (BCM, formerly Bright
+Cluster Manager) plus the GPU software stack on each node. BCM 11 is the
+current release. Your Slurm background helps, but learn the BCM way of
+doing things: <code>cmsh</code>, categories, software images and
+<code>cm-wlm-setup</code>.</p>
+<h3 id="step-31--install-bcm-configure-it-and-verify-ha">Step 3.1 —
+Install BCM, configure it, and verify HA</h3>
+<p><strong>Install the primary head node.</strong></p>
+<ol type="1">
+<li>Boot the BCM ISO and run the graphical installer.</li>
+<li>Choose the network layout: <em>Type 1</em> (compute nodes on a
+private internal network behind the head node) is the usual choice.</li>
+<li>Assign interfaces: <code>externalnet</code> (site),
+<code>internalnet</code> (provisioning, default 10.141.0.0/16),
+optionally <code>ipminet</code> (BMCs) and <code>ibnet</code>
+(InfiniBand).</li>
+<li>Pick the workload manager (or "None" and add Slurm later) and the
+base OS for the default software image.</li>
+<li>Install the license: <code>request-license</code> then
+<code>install-license</code>; check with
+<code>verify-license</code>.</li>
+</ol>
+<p><strong>Learn <code>cmsh</code> modes.</strong> Everything in BCM is
+an object you edit and then <code>commit</code>.</p>
+<pre class="bash"><code>cmsh
+% device                      # nodes, switches, PDUs
+% category                    # groups of nodes sharing config
+% softwareimage               # node OS images under /cm/images/
+% network                     # internalnet, ibnet, ipminet
+% wlm                         # Slurm clusters</code></pre>
+<p><strong>Configure HA.</strong></p>
+<ol type="1">
+<li>Install a second head node with matching hardware and networks.</li>
+<li>On the primary, run <code>cmha-setup</code> and follow the wizard:
+choose the secondary, a shared (virtual) IP for failover, and shared
+storage for <code>/cm/shared</code> and <code>/home</code> (NAS or
+DRBD).</li>
+<li>Make sure BMC power control works for both heads; BCM uses it to
+fence (STONITH) a failed head.</li>
+<li>Verify and test:</li>
+</ol>
+<pre class="bash"><code>cmha status                   # both heads, which is active, mysql/cmd/shared-IP checks
+ssh head2 cmha makeactive     # manual failover
+cmha status                   # confirm head2 is now active</code></pre>
+<p>Good looks like: every <code>cmha status</code> check passes on both
+heads, and Slurm's primary/backup controller follows the head pair.</p>
+<h3 id="step-32--install-the-os">Step 3.2 — Install the OS</h3>
+<ul>
+<li><strong>Head nodes</strong>: from the BCM ISO (it lays down Ubuntu
+or RHEL/Rocky underneath).</li>
+<li><strong>Compute nodes</strong>: never installed by hand. They
+PXE-boot, run the BCM node-installer, and receive a full copy of their
+category's software image.</li>
+<li><strong>DGX nodes</strong>: use a DGX OS software image
+(Ubuntu-based with drivers, DCGM, NVSM preinstalled) imported into
+BCM.</li>
+<li>Change an image with
+<code>cm-chroot-sw-img /cm/images/&lt;image&gt;</code>, then push
+changes to running nodes with <code>imageupdate -w</code> in
+<code>cmsh</code> device mode, or reboot them.</li>
+</ul>
+<h3
+id="step-33--install-the-cluster-categories-interfaces-slurm-enroot-and-pyxis">Step
+3.3 — Install the cluster: categories, interfaces, Slurm, Enroot and
+Pyxis</h3>
+<p><strong>Categories and nodes.</strong></p>
+<pre class="bash"><code>cmsh -c &quot;category; clone default dgx; set softwareimage dgx-os-image; commit&quot;
+cmsh -c &quot;device; add physicalnode dgx01 10.141.0.11; set category dgx; set mac &lt;mac&gt;; commit&quot;</code></pre>
+<p><strong>Interfaces</strong> (per node, or in a category for common
+settings):</p>
+<pre class="bash"><code>cmsh
+% device use dgx01
+% interfaces
+% add physical ibp24s0
+% set network ibnet
+% set ip 10.149.0.11
+% commit</code></pre>
+<p>Know interface types: <code>physical</code>, <code>bond</code>,
+<code>vlan</code>, <code>bridge</code>, <code>bmc</code>. Then power on
+(<code>power on -n dgx01</code>) and watch it provision.</p>
+<p><strong>Slurm with Pyxis and Enroot.</strong></p>
+<ol type="1">
+<li>Run <code>cm-wlm-setup</code>, choose <em>Setup (Step By Step)</em>,
+then <em>Slurm</em>.</li>
+<li>Put the server role on both head nodes (HA), and the client role on
+the GPU categories.</li>
+<li>GPU configuration: let Slurm auto-detect GPUs via NVML, or define 8
+GPUs per node as GRES.</li>
+<li>Answer <em>yes</em> to "Configure Pyxis plugin?" so Enroot and Pyxis
+are installed into the images.</li>
+<li>Save the config (for example <code>/root/cm-wlm-setup.conf</code>)
+and deploy.</li>
+<li>If you add a new software image later, rerun
+<code>cm-wlm-setup</code> so that image also gets Pyxis/Enroot. <a
+href="https://docs.nvidia.com/base-command-manager/bcm-11-custom-os-rhel/part5-reconfiguring-slurm.html">NVIDIA
+BCM Slurm guide</a></li>
+<li>Validate:</li>
+</ol>
+<pre class="bash"><code>module load slurm
+sinfo                                   # nodes idle
+srun -N1 --gpus=8 nvidia-smi -L         # 8 GPUs visible in a job
+srun -N1 --gpus=8 --container-image=nvcr.io#nvidia/pytorch:&lt;tag&gt; \
+     python -c &quot;import torch; print(torch.cuda.device_count())&quot;</code></pre>
+<p>Enroot specifics worth knowing: config in
+<code>/etc/enroot/enroot.conf</code> (<code>ENROOT_RUNTIME_PATH</code>,
+<code>ENROOT_CACHE_PATH</code>, <code>ENROOT_DATA_PATH</code>), NGC
+credentials in <code>~/.config/enroot/.credentials</code> as
+<code>machine nvcr.io login $oauthtoken password &lt;API-key&gt;</code>,
+and the registry separator <code>#</code> in image names. <a
+href="https://github.com/NVIDIA/pyxis/wiki/Setup/d67650bf3aca42137173f063c8c73fa193d52c1e">Pyxis
+setup wiki</a></p>
+<h3
+id="step-34--install-update-and-remove-nvidia-gpu-and-doca-drivers">Step
+3.4 — Install, update and remove NVIDIA GPU and DOCA drivers</h3>
+<p><strong>GPU driver</strong> (on a bare host, or inside the software
+image chroot on BCM):</p>
+<pre class="bash"><code># Ubuntu example using NVIDIA&#39;s CUDA repo
+apt install -y nvidia-driver-&lt;branch&gt;-server-open nvidia-fabricmanager-&lt;branch&gt;
+# RHEL/Rocky example
+dnf module install -y nvidia-driver:&lt;branch&gt;-open
+systemctl enable --now nvidia-persistenced nvidia-fabricmanager
+nvidia-smi                              # driver and CUDA version shown</code></pre>
+<ul>
+<li>Use the <strong>open kernel modules</strong> on current GPUs;
+Blackwell supports only the open modules.</li>
+<li>Blacklist <code>nouveau</code> and rebuild the initramfs before the
+first install.</li>
+<li><strong>Update</strong>: install the new branch, keep fabric manager
+at the same version, reboot (or reprovision from the updated
+image).</li>
+<li><strong>Remove</strong>: <code>apt purge '*nvidia*'</code> or
+<code>dnf module remove nvidia-driver</code>, or run the
+<code>.run</code> installer with <code>--uninstall</code> if that is how
+it was installed.</li>
+</ul>
+<p><strong>DOCA-Host</strong> (replaces MLNX_OFED for ConnectX and
+BlueField hosts):</p>
+<pre class="bash"><code># after adding the DOCA repo for your distro
+apt install -y doca-ofed        # or doca-all for the full SDK
+/etc/init.d/openibd restart
+ofed_info -s                    # version check
+ibstat                          # ports Active</code></pre>
+<p>Remove with <code>apt remove --purge doca-*</code> (or
+<code>ofed_uninstall.sh</code> for a legacy MLNX_OFED install).</p>
+<h3 id="step-35--install-the-nvidia-container-toolkit">Step 3.5 —
+Install the NVIDIA Container Toolkit</h3>
+<pre class="bash"><code># after adding the nvidia-container-toolkit repo
+apt install -y nvidia-container-toolkit
+nvidia-ctk runtime configure --runtime=docker      # edits /etc/docker/daemon.json
+systemctl restart docker
+nvidia-ctk cdi generate --output=/etc/cdi/nvidia.yaml   # optional CDI spec (Podman, containerd)</code></pre>
+<h3 id="step-36--use-nvidia-gpus-with-docker">Step 3.6 — Use NVIDIA GPUs
+with Docker</h3>
+<pre class="bash"><code>docker run --rm --gpus all ubuntu nvidia-smi
+docker run --rm --gpus &#39;&quot;device=0,1&quot;&#39; ubuntu nvidia-smi -L
+docker run --rm --gpus all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility &lt;image&gt;
+docker login nvcr.io            # user: $oauthtoken  password: NGC API key
+docker run --rm --gpus all --ipc=host --ulimit memlock=-1 \
+  nvcr.io/nvidia/pytorch:&lt;tag&gt; python -c &quot;import torch;print(torch.cuda.is_available())&quot;</code></pre>
+<p>Know why <code>--ipc=host</code> (or a large <code>--shm-size</code>)
+matters for multi-GPU training: NCCL and PyTorch data loaders use shared
+memory.</p>
+<h3 id="step-37--install-the-ngc-cli-on-hosts">Step 3.7 — Install the
+NGC CLI on hosts</h3>
+<ol type="1">
+<li>Download the Linux AMD64 or ARM64 zip from the NGC CLI installer
+page and unzip it.</li>
+<li><code>chmod u+x ngc-cli/ngc</code> and add the folder to
+<code>PATH</code>.</li>
+<li>Run <code>ngc config set</code> and enter the API key, org, team and
+output format.</li>
+<li>Test: <code>ngc registry image list nvidia/*pytorch*</code> and
+<code>ngc registry model list</code>.</li>
+</ol>
+<h3 id="domain-3-checklist">Domain 3 checklist</h3>
+<ul class="task-list">
+<li class="task-list-item"><label><input type="checkbox" disabled />I have installed a BCM head node and
+know Type 1 networking</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can navigate cmsh device,
+category, softwareimage, network and wlm modes</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run <code>cmha-setup</code>
+and tested failover with <code>cmha makeactive</code></label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can add an interface to a node and
+provision it from a software image</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run <code>cm-wlm-setup</code>
+with Pyxis and launched a container job through Slurm</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can install, update and remove the
+GPU driver and DOCA-Host</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can configure Docker for GPUs and
+log in to nvcr.io</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have configured the NGC
+CLI</label></li>
+</ul>
+</section><section class="part" id="domain-4-cluster-test-and-verification-33"><h2>7. Domain 4: Cluster Test and Verification (33%)</h2>
+<p>The heaviest domain. Work through it in the same order you would on a
+real cluster: one node, then cables and firmware, then the fabric, then
+long burn-ins. For every test, know what a <em>pass</em> looks like and
+what a <em>fail</em> points to.</p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Stage</th>
+<th>Tests</th>
+<th>A failure usually means</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Single node</td>
+<td>DCGM diag, HPL, NCCL on NVLink</td>
+<td>Bad GPU, NVSwitch/fabric manager issue, power or thermal
+throttling</td>
+</tr>
+<tr class="even">
+<td>Physical fabric</td>
+<td>mlxlink BER, ibdiagnet, cabling map, FW versions</td>
+<td>Dirty or bad optic, miswired port, mismatched firmware</td>
+</tr>
+<tr class="odd">
+<td>Fabric performance</td>
+<td>ClusterKit, ib_write_bw, multi-node NCCL</td>
+<td>Slow link, wrong NIC/GPU affinity, routing or congestion
+settings</td>
+</tr>
+<tr class="even">
+<td>Endurance</td>
+<td>NCCL, HPL and NeMo burn-ins</td>
+<td>Intermittent faults that only show under hours of load</td>
+</tr>
+<tr class="odd">
+<td>Storage</td>
+<td>fio, gdsio, IOR/mdtest</td>
+<td>Storage network, client config, or GDS not active</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="step-41--single-node-stress-test">Step 4.1 — Single-node stress
+test</h3>
+<pre class="bash"><code>dcgmi diag -r 3                       # ~30 min; -r 4 adds longer stress and memory tests
+nvidia-smi --query-gpu=index,temperature.gpu,power.draw,clocks.sm,clocks_throttle_reasons.active --format=csv -l 5</code></pre>
+<p>Pass: all DCGM plugins show <em>Pass</em>; during stress, clocks stay
+steady with no HW slowdown reasons. Also run
+<code>nvsm stress-test</code> on DGX systems.</p>
+<h3 id="step-42--execute-hpl">Step 4.2 — Execute HPL</h3>
+<p>Use the NGC <code>hpc-benchmarks</code> container rather than
+building HPL yourself. <a
+href="https://catalog.ngc.nvidia.com/orgs/nvidia/containers/hpc-benchmarks">NGC
+hpc-benchmarks</a></p>
+<pre class="bash"><code>CONT=&#39;nvcr.io#nvidia/hpc-benchmarks:&lt;tag&gt;&#39;
+srun -N 1 --ntasks-per-node=8 --cpu-bind=none --mpi=pmix \
+     --container-image=&quot;$CONT&quot; --container-mounts=/path/to/dat:/my-dat \
+     ./hpl.sh --dat /my-dat/HPL.dat</code></pre>
+<ul>
+<li>Sample input files live in
+<code>/workspace/hpl-linux-x86_64/sample-dat/</code> inside the
+container; size <code>N</code> so the matrix fills most of GPU
+memory.</li>
+<li>Know the HPL.dat parameters: <code>N</code> (problem size),
+<code>NB</code> (block size), <code>P × Q</code> (process grid = number
+of GPUs).</li>
+<li>Pass: the residual check reads <strong>PASSED</strong>, and GFLOPS
+per GPU is consistent across nodes (an outlier node is your
+suspect).</li>
+</ul>
+<h3 id="step-43--single-node-nccl-and-nvlink-switch-verification">Step
+4.3 — Single-node NCCL and NVLink Switch verification</h3>
+<pre class="bash"><code>git clone https://github.com/NVIDIA/nccl-tests &amp;&amp; cd nccl-tests
+make MPI=1 MPI_HOME=/usr/mpi/gcc/openmpi CUDA_HOME=/usr/local/cuda
+./build/all_reduce_perf -b 8 -e 16G -f 2 -g 8       # 8 GPUs, one process</code></pre>
+<ul>
+<li>Read the <strong>busbw</strong> column at large message sizes and
+compare it with NVIDIA's reference for your platform; H100/H200 SXM
+nodes typically reach several hundred GB/s.</li>
+<li>NVSwitch checks: <code>nvidia-smi nvlink --status</code> (all links
+up at full speed), <code>nvidia-smi -q | grep -A2 -i fabric</code>
+(fabric state <em>Completed</em>, status <em>Success</em>), and
+<code>systemctl status nvidia-fabricmanager</code>.</li>
+<li>Use <code>NCCL_DEBUG=INFO</code> to confirm NCCL is using NVLink
+(and NVLS, NVLink SHARP, where supported) rather than PCIe.</li>
+</ul>
+<h3 id="step-44--validate-cables-by-signal-quality">Step 4.4 — Validate
+cables by signal quality</h3>
+<pre class="bash"><code>mlxlink -d &lt;dev&gt; -c             # raw BER, effective BER, symbol errors, FEC
+mlxlink -d &lt;dev&gt; -e             # eye opening per lane
+ibdiagnet --get_phy_info --get_cable_info   # whole-fabric PHY and cable report</code></pre>
+<p>Pass: effective BER and symbol errors at zero or within spec, no
+lanes with poor eye opening, no links negotiated below NDR/XDR speed or
+below 4x width. Fail actions: clean fibre, reseat, then swap the optic,
+then the cable.</p>
+<h3 id="step-45--confirm-cabling-is-correct">Step 4.5 — Confirm cabling
+is correct</h3>
+<p>Correct <em>signal</em> is not the same as correct <em>wiring</em>. A
+swapped rail cable passes BER checks but breaks rail optimisation.</p>
+<ul>
+<li>InfiniBand: compare <code>ibnetdiscover</code> /
+<code>iblinkinfo</code> output with the planned topology; UFM's cable
+validation feature does this against a topology file.</li>
+<li>Ethernet: compare LLDP neighbours (<code>lldpctl</code>, or NetQ)
+with the cabling plan.</li>
+<li>Check that GPU <em>n</em> of every node lands on rail
+<em>n</em>.</li>
+</ul>
+<h3 id="step-46--confirm-switch-firmware-and-software">Step 4.6 —
+Confirm switch firmware and software</h3>
+<pre class="bash"><code>ibswitches                       # all switches discovered
+flint -d lid-&lt;switch-lid&gt; q      # in-band firmware query of an IB switch
+# on a Quantum switch (MLNX-OS CLI)
+show version
+# on Spectrum with Cumulus Linux
+nv show system</code></pre>
+<p>Pass: every switch on the same approved firmware/OS version from the
+release matrix.</p>
+<h3 id="step-47--confirm-bluefield-3-firmware-and-software">Step 4.7 —
+Confirm BlueField-3 firmware and software</h3>
+<ul>
+<li>From the host: <code>flint -d /dev/mst/mt41692_pciconf0 q</code> and
+<code>mlxfwmanager --query</code>.</li>
+<li>On the DPU Arm OS: <code>bfvcheck</code> (BFB, ATF, UEFI, NIC
+firmware) and <code>cat /etc/mlnx-release</code>.</li>
+<li>DPU BMC firmware via its Redfish
+<code>FirmwareInventory</code>.</li>
+<li>Confirm the mode (DPU or NIC) matches the design.</li>
+</ul>
+<h3 id="step-48--confirm-transceiver-firmware">Step 4.8 — Confirm
+transceiver firmware</h3>
+<p><code>mlxlink -d &lt;dev&gt; -m</code> reports the module's vendor,
+part number and firmware version; on switches use the transceiver show
+commands. LinkX optics firmware can be updated with the
+flint/mlxfwmanager LinkX options; follow the release notes for the
+approved version.</p>
+<h3 id="step-49--run-clusterkit-for-a-multifaceted-node-assessment">Step
+4.9 — Run ClusterKit for a multifaceted node assessment</h3>
+<p>ClusterKit ships in the HPC-X toolkit. It tests latency, bandwidth,
+memory bandwidth, collectives, GPU-to-GPU and GPU-to-host paths, and
+bisection bandwidth, and needs Slurm or passwordless SSH across hosts.
+<a
+href="https://docs.nvidia.com/networking/display/hpcxv2210/clusterkit">HPC-X
+ClusterKit docs</a></p>
+<pre class="bash"><code>source &lt;hpcx&gt;/hpcx-init.sh &amp;&amp; hpcx_load
+$HPCX_CLUSTERKIT_DIR/bin/clusterkit.sh -f hostfile.txt \
+  --hca_list &quot;mlx5_0:1,mlx5_1:1&quot; --ppn 1 -g</code></pre>
+<ul>
+<li>Install HPC-X on a shared directory so every node sees the same
+files.</li>
+<li>Pairwise tests need at least two nodes.</li>
+<li>Read the output heat maps: a row and column of poor results crossing
+at one node identifies a slow node; a single cold cell identifies a slow
+link.</li>
+</ul>
+<h3 id="step-410--verify-east-west-fabric-bandwidth-with-nccl">Step 4.10
+— Verify East-West fabric bandwidth with NCCL</h3>
+<pre class="bash"><code># first a point-to-point sanity check (perftest)
+ib_write_bw -d mlx5_0 --report_gbits                 # on node A
+ib_write_bw -d mlx5_0 --report_gbits &lt;nodeA&gt;         # on node B
+ib_write_bw -d mlx5_0 --use_cuda=0 --report_gbits &lt;nodeA&gt;   # GPUDirect RDMA path
+
+# then NCCL across nodes, one rank per GPU
+srun -N 2 --ntasks-per-node=8 --gpus-per-node=8 --mpi=pmix \
+     ./build/all_reduce_perf -b 8 -e 16G -f 2 -g 1</code></pre>
+<ul>
+<li>Expect each 400G NDR link near line rate (~390 Gb/s) in
+ib_write_bw.</li>
+<li>Scale NCCL from 2 nodes to an SU to the full cluster; busbw should
+stay roughly flat. A drop at one scale points to a spine or routing
+issue.</li>
+<li>Useful variables: <code>NCCL_DEBUG=INFO</code>,
+<code>NCCL_IB_HCA</code>, <code>NCCL_SOCKET_IFNAME</code>,
+<code>NCCL_ALGO</code>.</li>
+</ul>
+<h3 id="step-411--nccl-burn-in">Step 4.11 — NCCL burn-in</h3>
+<p>Run all_reduce (and all_to_all) across the full cluster for hours,
+for example in a loop or with a high iteration count (<code>-n</code>).
+Watch for busbw dips, new Xid errors in <code>dmesg</code>, rising IB
+port error counters, and link flaps in UFM.</p>
+<h3 id="step-412--hpl-burn-in">Step 4.12 — HPL burn-in</h3>
+<p>Repeat full-cluster HPL runs over many hours (overnight is common).
+Pass: every run's residual PASSED and GFLOPS varies only a few percent
+between runs. HPL stresses power and cooling hardest, so it exposes weak
+PSUs and hot spots.</p>
+<h3 id="step-413--nemo-burn-in">Step 4.13 — NeMo burn-in</h3>
+<p>Run a real training workload: a NeMo Framework pretraining recipe
+(for example a GPT- or Llama-style model on synthetic or mock data)
+across the whole cluster for several hours. Monitor step time, tokens
+per second and loss. It catches problems synthetic tests miss: storage
+stalls during checkpoints, rare NCCL timeouts and memory errors under
+mixed load.</p>
+<h3 id="step-414--test-storage">Step 4.14 — Test storage</h3>
+<pre class="bash"><code>fio --name=seqread --rw=read --bs=1M --size=20G --numjobs=16 --direct=1 --directory=/mnt/data
+/usr/local/cuda/gds/tools/gdsio -f /mnt/data/test -d 0 -w 8 -s 10G -i 1M -x 0 -I 0   # GDS read
+mpirun -np &lt;N&gt; ior -w -r -t 1m -b 16g -F -o /mnt/data/ior   # aggregate parallel I/O</code></pre>
+<p>Compare per-node and aggregate results with the vendor's sizing and
+with the baseline from Step 1.11. Test metadata (mdtest) and checkpoint
+write time too.</p>
+<h3 id="domain-4-checklist">Domain 4 checklist</h3>
+<ul class="task-list">
+<li class="task-list-item"><label><input type="checkbox" disabled />I can run and interpret
+<code>dcgmi diag -r 3</code></label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run HPL from the NGC
+container and know N, NB, P and Q</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can read NCCL busbw and confirm
+NVSwitch fabric state</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can read mlxlink BER and eye
+output and know the remediation order</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can check cabling correctness
+against a planned topology</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can confirm switch, BlueField-3
+and transceiver firmware versions</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run ClusterKit and can read
+its heat map</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run ib_write_bw and
+multi-node NCCL and know expected rates</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can explain what each burn-in
+(NCCL, HPL, NeMo) catches</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I have run fio and gdsio against
+shared storage</label></li>
+</ul>
+</section><section class="part" id="domain-5-troubleshoot-and-optimize-12"><h2>8. Domain 5: Troubleshoot and Optimize (12%)</h2>
+<p>Expect scenario questions: "a node shows X, what is the most likely
+cause and the next step?" The safe answer pattern is <em>isolate, gather
+evidence, replace the smallest part, re-validate</em>.</p>
+<h3
+id="step-51--identify-and-troubleshoot-hardware-faults-gpu-fan-network-card">Step
+5.1 — Identify and troubleshoot hardware faults (GPU, fan, network
+card)</h3>
+<p><strong>Evidence sources, in order of use:</strong></p>
+<pre class="bash"><code>dmesg -T | grep -i xid                  # GPU Xid events
+nvidia-smi -q -d ECC,PAGE_RETIREMENT,ROW_REMAPPER
+dcgmi health -s a &amp;&amp; dcgmi health -c    # enable all watches, then check
+ipmitool sel elist                      # fans, PSUs, temperatures from the BMC
+ipmitool sdr | grep -Ei &#39;fan|psu|temp&#39;
+nvsm show health                        # DGX
+nvidia-bug-report.sh                    # support bundle for NVIDIA
+ibstat; ibqueryerrors; perfquery        # NIC and port counters</code></pre>
+<p><strong>Xid codes worth memorising:</strong></p>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Xid</th>
+<th>Meaning</th>
+<th>Usual action</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>13, 31, 43</td>
+<td>Graphics exception, MMU fault, GPU stopped processing</td>
+<td>Usually the application; rerun, check code, then DCGM diag</td>
+</tr>
+<tr class="even">
+<td>48</td>
+<td>Double-bit ECC error</td>
+<td>Reset GPU; repeated events mean RMA</td>
+</tr>
+<tr class="odd">
+<td>63, 64</td>
+<td>ECC page retirement or row-remap event / failure</td>
+<td>Reset to apply remap; a failure means RMA</td>
+</tr>
+<tr class="even">
+<td>74</td>
+<td>NVLink error</td>
+<td>Check NVLink status and fabric manager; reseat or service</td>
+</tr>
+<tr class="odd">
+<td>79</td>
+<td>GPU has fallen off the bus</td>
+<td>Hardware or power; drain node, check PCIe, PSU, seating</td>
+</tr>
+<tr class="even">
+<td>92, 94, 95</td>
+<td>High single-bit ECC rate, contained / uncontained ECC</td>
+<td>Drain, reset, run DCGM diag; RMA if it repeats</td>
+</tr>
+</tbody>
+</table></div>
+<p>Fans and PSUs show up in the BMC SEL and sensor readings first; a
+failed fan often appears as GPU thermal slowdown before anything else.
+NIC faults appear as ports down, degraded width/speed, or climbing
+symbol and link-recovery counters.</p>
+<h3 id="step-52--identify-faulty-cards-gpus-and-power-supplies">Step 5.2
+— Identify faulty cards, GPUs and power supplies</h3>
+<ul>
+<li>Map the logical device to the physical slot:
+<code>nvidia-smi -q</code> (serial, PCI bus ID, module ID),
+<code>lspci -vvv</code>, <code>ipmitool fru</code>, and the system's
+slot diagram.</li>
+<li>Turn on the locate LED:
+<code>ipmitool chassis identify 240</code>.</li>
+<li>Distinguish a bad part from a bad slot or cable by swapping one
+variable at a time.</li>
+</ul>
+<h3 id="step-53--replace-faulty-cards-gpus-and-power-supplies">Step 5.3
+— Replace faulty cards, GPUs and power supplies</h3>
+<ol type="1">
+<li>Drain the node:
+<code>scontrol update nodename=&lt;n&gt; state=drain reason="GPU3 Xid79"</code>
+(or close it in BCM).</li>
+<li>Power off; PSUs in a redundant set can usually be hot-swapped, GPUs
+and NICs cannot.</li>
+<li>Replace per the service manual (ESD, torque, thermal pads).</li>
+<li>Bring the new part to the cluster's firmware baseline (Step
+1.4).</li>
+<li>For a new ConnectX/BlueField: GUIDs and MACs change, so update BCM
+interface records, UFM, and any partition (PKey) membership.</li>
+<li>Re-validate: <code>dcgmi diag -r 3</code>, single-node NCCL, then a
+short multi-node NCCL run.</li>
+<li>Resume:
+<code>scontrol update nodename=&lt;n&gt; state=resume</code>, and record
+the RMA.</li>
+</ol>
+<h3 id="step-54--optimise-performance-on-amd-and-intel-servers">Step 5.4
+— Optimise performance on AMD and Intel servers</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr class="header">
+<th>Area</th>
+<th>AMD EPYC</th>
+<th>Intel Xeon</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>NUMA</td>
+<td>Set NPS (NUMA nodes per socket) as the platform guide recommends,
+often NPS1 for GPU servers</td>
+<td>Sub-NUMA Clustering usually off for GPU servers</td>
+</tr>
+<tr class="even">
+<td>Power</td>
+<td>Performance determinism, max power profile, limit deep C-states</td>
+<td>Performance power profile, Energy Perf Bias = performance, limit
+deep C-states</td>
+</tr>
+<tr class="odd">
+<td>I/O</td>
+<td>IOMMU in passthrough (<code>iommu=pt</code>), max xGMI link
+width/speed, Preferred I/O for GPU/NIC root ports</td>
+<td>VT-d with <code>intel_iommu=on iommu=pt</code></td>
+</tr>
+<tr class="even">
+<td>Both</td>
+<td>PCIe ACS disabled on switches in the GPU-NIC path so peer-to-peer
+and GPUDirect RDMA work; PCIe max read request 4096; Relaxed Ordering
+enabled</td>
+<td>Same</td>
+</tr>
+</tbody>
+</table></div>
+<p>OS-level tuning on both:</p>
+<pre class="bash"><code>cpupower frequency-set -g performance      # or tuned-adm profile throughput-performance
+nvidia-smi topo -m                         # read CPU and NUMA affinity per GPU
+srun --cpu-bind=cores --gpus-per-task=1 ...   # bind ranks to the GPU&#39;s NUMA node</code></pre>
+<p>Always follow the server vendor's and NVIDIA's platform tuning guide;
+the exam favours "check the recommended BIOS settings" over
+guessing.</p>
+<h3 id="step-55--optimise-storage">Step 5.5 — Optimise storage</h3>
+<ul>
+<li>Turn on GPUDirect Storage so data moves NIC-to-GPU without a CPU
+bounce buffer.</li>
+<li>Keep storage traffic on its own fabric, with RDMA and MTU 9000.</li>
+<li>Use multiple client connections (<code>nconnect</code>) and multiple
+NICs.</li>
+<li>Use local NVMe (<code>/raid</code> on DGX) as a cache, for example
+FS-Cache for NFS, or a staging area for datasets.</li>
+<li>On parallel file systems, stripe large files across targets (Lustre
+<code>lfs setstripe</code>).</li>
+<li>Size for checkpoints: write bandwidth must absorb the full model
+checkpoint within the target window.</li>
+</ul>
+<h3 id="domain-5-checklist">Domain 5 checklist</h3>
+<ul class="task-list">
+<li class="task-list-item"><label><input type="checkbox" disabled />I can list the evidence sources for
+a GPU, fan, PSU or NIC fault</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I know the Xid codes in the table
+and the action for each</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can map a GPU's bus ID or serial
+to its physical slot</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I know the 7-step
+replace-and-revalidate flow, including GUID updates</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can name the key BIOS settings for
+AMD and Intel GPU servers</label></li>
+<li class="task-list-item"><label><input type="checkbox" disabled />I can list five storage
+optimisations</label></li>
+</ul>
+</section><section class="part" id="exam-day-strategy-and-self-check-questions"><h2>9. Exam-day strategy and self-check questions</h2>
+<p>With 120 minutes for up to 75 questions you have about 1.6 minutes
+each, so answer what you know on the first pass, flag the rest, and come
+back.</p>
+<p><strong>Strategy.</strong></p>
+<ul>
+<li>Test your webcam, ID and room setup for remote proctoring the day
+before.</li>
+<li>Read for the <em>stage</em> the question is in (bring-up,
+validation, troubleshooting); the right answer is usually the next step
+in the sequence, not the most powerful tool.</li>
+<li>Prefer non-destructive, evidence-first answers: check logs and
+counters before replacing parts.</li>
+<li>Watch for "single-node" versus "multi-node" wording; it decides
+between NVLink tests and fabric tests.</li>
+<li>Eliminate answers that skip validation after a change.</li>
+</ul>
+<p><strong>Self-check questions</strong> (answer before reading the
+answer line).</p>
+<ol type="1">
+<li>A new HGX H100 node reports CUDA initialisation errors, but
+<code>nvidia-smi</code> lists all 8 GPUs. What do you check first?
+<ul>
+<li>nvidia-fabricmanager: running, and the same version as the
+driver.</li>
+</ul></li>
+<li>Two nodes pass mlxlink BER checks, but multi-node NCCL is slow only
+between rails 3 and 4. Likely cause?
+<ul>
+<li>Swapped cables between rails; verify cabling against the topology
+(Step 4.5).</li>
+</ul></li>
+<li>Which tool updates both the motherboard tray and the HGX GPU tray
+through the BMC?
+<ul>
+<li>nvfwupd, using the motherboard-tray and GPU-tray .fwpkg files.</li>
+</ul></li>
+<li>What must you run again after adding a new software image to a BCM
+cluster that already has Slurm with Pyxis?
+<ul>
+<li><code>cm-wlm-setup</code>, so the new image gets the Pyxis, Enroot
+and CMDaemon packages.</li>
+</ul></li>
+<li>Which command fails over the BCM head nodes manually?
+<ul>
+<li><code>cmha makeactive</code> on the passive head; check with
+<code>cmha status</code>.</li>
+</ul></li>
+<li>You need seven isolated inference slices on one H100. What do you
+create?
+<ul>
+<li>Seven 1g.10gb MIG GPU instances with compute instances
+(<code>-cgi</code> with <code>-C</code>).</li>
+</ul></li>
+<li>How do you switch a BlueField-3 to NIC mode?
+<ul>
+<li><code>mlxconfig ... s INTERNAL_CPU_OFFLOAD_ENGINE=1</code>, then a
+host power cycle.</li>
+</ul></li>
+<li>Which column of nccl-tests output do you compare against reference
+values?
+<ul>
+<li>busbw (bus bandwidth), at large message sizes.</li>
+</ul></li>
+<li>ClusterKit shows one row and column of poor bandwidth crossing at
+node17. What does that mean?
+<ul>
+<li>node17 is slow with every peer: suspect its NIC, cable, PCIe link or
+affinity.</li>
+</ul></li>
+<li>A GPU logs Xid 79. First actions?
+<ul>
+<li>Drain the node, check PCIe link, power and seating, collect
+<code>nvidia-bug-report.sh</code>; likely hardware.</li>
+</ul></li>
+<li>Which burn-in best exposes power and cooling weaknesses?
+<ul>
+<li>HPL burn-in.</li>
+</ul></li>
+<li>What proves GPUDirect Storage is active on a client?
+<ul>
+<li><code>gdscheck -p</code> shows GDS supported for the file system,
+and gdsio reaches expected throughput.</li>
+</ul></li>
+<li>After replacing a ConnectX card, which records must you update?
+<ul>
+<li>BCM interface MAC/GUID, UFM, and any InfiniBand partition (PKey)
+membership.</li>
+</ul></li>
+<li>On an AMD GPU server, which BIOS settings matter most for GPU-NIC
+peer-to-peer?
+<ul>
+<li>IOMMU passthrough, ACS disabled in the GPU-NIC path, the platform's
+recommended NPS and Preferred I/O settings.</li>
+</ul></li>
+</ol>
+</section><section class="part" id="official-resources-and-sources"><h2>10. Official resources and sources</h2>
+<p>Start with the study guide's reading list, then go deep on the BCM,
+DGX firmware and HPC-X docs, which this tutorial leans on most.</p>
+<p><strong>Exam and training</strong></p>
+<ul>
+<li><a
+href="https://www.nvidia.com/en-eu/learn/certification/ai-infrastructure-professional/">NCP-AII
+certification page</a></li>
+<li><a
+href="https://dam-cdn.nvd.orangelogic.com/AssetLink/8gauup66xn2gv80pu4m166li0bhyytk4.pdf">NCP-AII
+study guide (PDF)</a></li>
+<li><a
+href="https://www.nvidia.com/en-us/training/academy/course-detail/?id=course%3A15139841">AI
+Infrastructure &amp; Operations Fundamentals (self-paced)</a></li>
+<li><a
+href="https://www.nvidia.com/en-us/training/academy/course-detail/?id=course%3A15932196">AI
+Infrastructure Professional workshop</a></li>
+<li><a
+href="https://www.certiverse.com/#/checkout/nvidia/store-exam/NCP-AII">Register
+on Certiverse</a></li>
+</ul>
+<p><strong>Documentation used in this tutorial</strong></p>
+<ul>
+<li><a
+href="https://docs.nvidia.com/dgx/dgxh100-fw-update-guide/sequence.html">DGX
+H100/H200 firmware update steps (nvfwupd)</a></li>
+<li><a
+href="https://docs.nvidia.com/base-command-manager/bcm-licensing-and-support/">BCM
+licensing, including the free license</a></li>
+<li><a
+href="https://docs.nvidia.com/base-command-manager/product-manuals/11/admin/workloadmanagement">BCM
+11 workload management (Slurm HA)</a></li>
+<li><a
+href="https://docs.nvidia.com/base-command-manager/bcm-11-custom-os-rhel/part5-reconfiguring-slurm.html">BCM:
+rerunning cm-wlm-setup for Pyxis/Enroot</a></li>
+<li><a
+href="https://github.com/NVIDIA/pyxis/wiki/Setup/d67650bf3aca42137173f063c8c73fa193d52c1e">Pyxis
+and Enroot setup</a></li>
+<li><a
+href="https://docs.nvidia.com/networking/display/hpcxv2210/clusterkit">HPC-X
+ClusterKit</a></li>
+<li><a
+href="https://docs.nvidia.com/networking/display/IBClusterBringupProcedure/Performance+Testing">InfiniBand
+cluster bring-up: performance testing</a></li>
+<li><a
+href="https://catalog.ngc.nvidia.com/orgs/nvidia/containers/hpc-benchmarks">NGC
+hpc-benchmarks container (HPL)</a></li>
+<li><a href="https://github.com/NVIDIA/nccl-tests">nccl-tests on
+GitHub</a></li>
+</ul>
+<p><strong>Also on the study guide's reading list</strong> (search
+NVIDIA docs by title): MIG User Guide, DCGM User Guide, NVSM CLI guide,
+DGX SuperPOD Deployment and Administration Guides, DGX BasePOD
+Deployment Guide, LinkX Cables and Transceivers, InfiniBand Fabric
+Utilities, UFM Supported Counters and Events, DOCA-Host Installation,
+Deploying DPU OS Using BFB From BMC, Installing and Configuring the
+NVIDIA Container Toolkit, Getting Started with the NGC CLI, NeMo
+Framework User Guide.</p>
+</section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against NVIDIA and vendor documentation before production use.</footer>
+<script>
+(()=>{const key='chk:'+location.pathname;let st={};try{st=JSON.parse(localStorage.getItem(key)||'{}')}catch(e){}
+const boxes=[...document.querySelectorAll('li.task-list-item input[type=checkbox]')];
+const bar=document.querySelector('.bar i'),cnt=document.getElementById('cnt');
+function upd(){const n=boxes.filter(b=>b.checked).length;cnt.textContent=n+' of '+boxes.length+' done';bar.style.width=(boxes.length?100*n/boxes.length:0)+'%';
+boxes.forEach(b=>b.closest('li').classList.toggle('done',b.checked))}
+boxes.forEach((b,i)=>{b.disabled=false;b.checked=!!st[i];b.addEventListener('change',()=>{st[i]=b.checked;try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}upd()})});
+document.getElementById('clr').onclick=()=>{st={};boxes.forEach(b=>b.checked=false);try{localStorage.removeItem(key)}catch(e){}upd()};upd()})();
+</script>
+</body>
+</html>
