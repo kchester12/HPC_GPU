@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HPC Scheduler Ports and Firewall Reference</title>
+<meta name="description" content="Default communication ports for Slurm, IBM LSF, Grid Engine, PBS and the infrastructure around them, with firewall pitfalls and verification commands.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#40d9ff;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+td:first-child{white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;color:#bfeaff}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--amber);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--amber)}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote{background:#fff!important;color:#111!important;box-shadow:none}pre,code,td:first-child{background:#f4f4f4!important;color:#111!important}.back{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>HPC Scheduler Ports and Firewall Reference</h1>
+<p class="sub">Default communication ports for Slurm, IBM LSF, Grid Engine and PBS, plus the identity, storage, monitoring and management services a cluster depends on.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol>
+<li><a href="#slurm">Slurm</a></li>
+<li><a href="#lsf">IBM Spectrum LSF</a></li>
+<li><a href="#grid-engine">Altair / Univa / SGE Grid Engine</a></li>
+<li><a href="#pbs">PBS Pro / OpenPBS and HTCondor</a></li>
+<li><a href="#infra">Supporting infrastructure</a></li>
+<li><a href="#pitfalls">Firewall pitfalls</a></li>
+<li><a href="#verify">Verify on your cluster</a></li>
+</ol></nav>
+
+<blockquote><p><strong>Defaults, not guarantees.</strong> Every port below can be changed in configuration. On an existing cluster, check the running config (see <a href="#verify">Verify</a>) before writing firewall rules.</p></blockquote>
+
+<section class="part" id="slurm"><h2>Slurm</h2>
+<div class="table-wrap"><table>
+<tr><th>Port</th><th>Proto</th><th>Daemon</th><th>Direction / notes</th></tr>
+<tr><td>6817</td><td>TCP</td><td><code>slurmctld</code></td><td>All nodes, login hosts and clients → controller (<code>SlurmctldPort</code>; can be a range for HA)</td></tr>
+<tr><td>6818</td><td>TCP</td><td><code>slurmd</code></td><td>Controller → compute nodes, plus node-to-node for fan-out messaging (<code>SlurmdPort</code>)</td></tr>
+<tr><td>6819</td><td>TCP</td><td><code>slurmdbd</code></td><td><code>slurmctld</code> and <code>sacct</code>/<code>sacctmgr</code> clients → dbd (<code>DbdPort</code>)</td></tr>
+<tr><td>6820</td><td>TCP</td><td><code>slurmrestd</code></td><td>Convention only; it has no built-in default and listens wherever you bind it</td></tr>
+<tr><td>3306</td><td>TCP</td><td>MariaDB</td><td><code>slurmdbd</code> → database (keep local or firewalled)</td></tr>
+<tr><td>ephemeral</td><td>TCP</td><td><code>srun</code></td><td>Compute nodes connect <strong>back</strong> to the submit host. Pin with <code>SrunPortRange=60001-63000</code> so login nodes can open a fixed range.</td></tr>
+</table></div>
+<p>MUNGE doesn't use the network (it's a local socket), but it needs clocks in sync across the cluster, so NTP has to work.</p>
+</section>
+
+<section class="part" id="lsf"><h2>IBM Spectrum LSF</h2>
+<div class="table-wrap"><table>
+<tr><th>Port</th><th>Proto</th><th>Daemon</th><th>Parameter / notes</th></tr>
+<tr><td>7869</td><td>TCP + UDP</td><td>LIM</td><td><code>LSF_LIM_PORT</code> (UDP carries load and heartbeat traffic)</td></tr>
+<tr><td>6878</td><td>TCP</td><td>RES</td><td><code>LSF_RES_PORT</code></td></tr>
+<tr><td>6881</td><td>TCP</td><td>mbatchd</td><td><code>LSB_MBD_PORT</code></td></tr>
+<tr><td>6882</td><td>TCP</td><td>sbatchd</td><td><code>LSB_SBD_PORT</code></td></tr>
+<tr><td>6891</td><td>TCP</td><td>mbatchd query child</td><td><code>LSB_QUERY_PORT</code> (unset by default; 6891 is the usual choice)</td></tr>
+<tr><td>7870 / 7871</td><td>TCP</td><td>EGO kd / pem</td><td><code>EGO_KD_PORT</code> / <code>EGO_PEM_PORT</code> (only when EGO is enabled)</td></tr>
+<tr><td>8080 / 8443</td><td>TCP</td><td>Application Center</td><td>Web portal and RESTful API</td></tr>
+</table></div>
+</section>
+
+<section class="part" id="grid-engine"><h2>Altair / Univa / SGE Grid Engine</h2>
+<div class="table-wrap"><table>
+<tr><th>Port</th><th>Proto</th><th>Daemon</th><th>Notes</th></tr>
+<tr><td>6444</td><td>TCP</td><td><code>sge_qmaster</code></td><td><code>SGE_QMASTER_PORT</code></td></tr>
+<tr><td>6445</td><td>TCP</td><td><code>sge_execd</code></td><td><code>SGE_EXECD_PORT</code></td></tr>
+</table></div>
+<p>The qmaster ↔ execd traffic goes both ways. <code>qrsh</code>/<code>qlogin</code> use ephemeral ports unless you configure them to run over ssh.</p>
+</section>
+
+<section class="part" id="pbs"><h2>PBS Pro / OpenPBS and HTCondor</h2>
+<div class="table-wrap"><table>
+<tr><th>Port</th><th>Daemon</th></tr>
+<tr><td>15001</td><td><code>pbs_server</code></td></tr>
+<tr><td>15002–15003</td><td><code>pbs_mom</code></td></tr>
+<tr><td>15004</td><td><code>pbs_sched</code></td></tr>
+<tr><td>15007</td><td>PostgreSQL datastore</td></tr>
+<tr><td>17001</td><td><code>pbs_comm</code></td></tr>
+<tr><td>9618</td><td>HTCondor collector / shared port</td></tr>
+</table></div>
+</section>
+
+<section class="part" id="infra"><h2>Supporting infrastructure</h2>
+<div class="table-wrap"><table>
+<tr><th>Port(s)</th><th>Service</th><th>Notes</th></tr>
+<tr><td>2049, 111</td><td>NFS, rpcbind</td><td><code>mountd</code>, <code>statd</code> and <code>lockd</code> use dynamic ports unless fixed in <code>/etc/nfs.conf</code> (20048 is common for mountd)</td></tr>
+<tr><td>111 + dynamic</td><td>NIS</td><td><code>ypserv</code>/<code>ypbind</code> register dynamic RPC ports, one more reason to retire it</td></tr>
+<tr><td>53, 88, 464</td><td>AD: DNS, Kerberos, kpasswd</td><td>Kerberos uses TCP and UDP</td></tr>
+<tr><td>389, 636</td><td>AD: LDAP, LDAPS</td><td>Used by SSSD for identity lookups</td></tr>
+<tr><td>3268 / 3269</td><td>AD Global Catalog</td><td>Plain / TLS</td></tr>
+<tr><td>123/udp</td><td>NTP / chrony</td><td>Required for both MUNGE and Kerberos</td></tr>
+<tr><td>9100, 9090, 3000</td><td>node_exporter, Prometheus, Grafana</td><td>Monitoring stack</td></tr>
+<tr><td>5900 + N</td><td>VNC / TurboVNC</td><td>5901 for display :1, and so on; ideally reached only through an SSH tunnel</td></tr>
+<tr><td>623/udp, 443</td><td>IPMI, Redfish (iLO / iDRAC)</td><td>Keep on an isolated management network</td></tr>
+<tr><td>ephemeral</td><td>MPI over TCP</td><td>Pin with Open MPI's <code>btl_tcp_port_min_v4</code> / <code>btl_tcp_port_range_v4</code>, or leave the compute fabric unfirewalled</td></tr>
+</table></div>
+</section>
+
+<section class="part" id="pitfalls"><h2>Firewall pitfalls</h2>
+<ul>
+<li><strong>Callbacks to the submit host.</strong> The most common breakage is blocking traffic going <em>back</em> to login nodes: Slurm <code>srun</code> I/O and step callbacks, LSF RES for interactive jobs, and Grid Engine <code>qrsh</code>. Pin those ranges and open them on login nodes.</li>
+<li><strong>LSF UDP.</strong> Opening only TCP 7869 leaves LIM heartbeats dropped, and hosts flap to <code>unavail</code>.</li>
+<li><strong>Bidirectional daemons.</strong> Controllers push to node daemons (<code>slurmd</code>, <code>sbatchd</code>, <code>sge_execd</code>) as well as receive from them.</li>
+<li><strong>Time drift.</strong> A blocked NTP port shows up later as MUNGE credential failures or Kerberos errors, not as an obvious network problem.</li>
+<li><strong>Common pattern.</strong> Treat the compute and fabric network as trusted and firewall only the login nodes, the controller and the management network.</li>
+</ul>
+</section>
+
+<section class="part" id="verify"><h2>Verify on your cluster</h2>
+<pre><code># Slurm
+scontrol show config | grep -Ei 'port|SrunPortRange'
+
+# LSF
+grep -E 'PORT' $LSF_ENVDIR/lsf.conf
+
+# Grid Engine
+grep PORT $SGE_ROOT/$SGE_CELL/common/settings.sh   # or check /etc/services
+
+# What is actually listening
+ss -tulpn | grep -E 'slurm|lim|res|batchd|sge|pbs'</code></pre>
+</section>
+</div></main>
+<footer>Examples are generic. Verify ports and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>

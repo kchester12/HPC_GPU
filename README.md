@@ -9,6 +9,7 @@ Scope, stated plainly: the scheduler, OOM, and Ansible notes draw on my day-to-d
 
 | Runbook | What it covers |
 |---|---|
+| [HPC Scheduler Ports and Firewall Reference](https://kchester12.github.io/HPC_GPU/hpc_scheduler_ports.html) | Default ports for Slurm, LSF, Grid Engine, PBS and supporting services, with firewall pitfalls and verification commands |
 | [NCP-AII Study Guide: NVIDIA AI Infrastructure Professional](https://kchester12.github.io/HPC_GPU/ncp_aii_study_guide.html) | Step-by-step study tutorial following the NCP-AII exam blueprint, from server bring-up and BCM to cluster verification and troubleshooting |
 | [Slurm GPU and RDMA Observability](https://kchester12.github.io/HPC_GPU/slurm_gpu_rdma_observability.html) | Prometheus and Grafana design tying GPU, host, and RoCEv2 metrics to a Slurm Job ID |
 | [Slurm GPU Job Tagging Hooks](https://kchester12.github.io/HPC_GPU/slurm_gpu_job_tagging.html) | Non-blocking controller prolog/epilog scripts that post GPU allocation events to a metrics API |
