@@ -147,10 +147,16 @@ def expand_nodelist(nodelist):
 
 def get_job_info(jobid):
     """Run scontrol and parse the job's NodeList, user, and state."""
-    out = subprocess.run(
-        ["scontrol", "show", "job", str(jobid)],
-        capture_output=True, text=True, timeout=30,
-    )
+    try:
+        out = subprocess.run(
+            ["scontrol", "show", "job", str(jobid)],
+            capture_output=True, text=True, timeout=30,
+        )
+    except FileNotFoundError:
+        raise RuntimeError("scontrol not found; run this from a node with the Slurm client tools, "
+                           "or pass --nodes to skip the lookup")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"scontrol timed out after 30s for job {jobid}")
     if out.returncode != 0:
         raise RuntimeError(f"scontrol failed for job {jobid}: {out.stderr.strip()}")
     text = out.stdout
@@ -253,7 +259,7 @@ def summarise(results):
 
 def print_report(jobid, job_info, results, errors):
     """Print the human-readable map."""
-    print(f"Job {jobid}  state={job_info['state']}  user={job_info['user']}")
+    print(f"Job {jobid}  state={job_info['state'] or 'unknown'}  user={job_info['user'] or 'unknown'}")
     print(f"Nodes: {job_info['nodelist']}")
     print()
     if job_info["state"] and job_info["state"].upper() not in ("RUNNING",):
@@ -325,8 +331,13 @@ def main(argv=None):
     try:
         job_info = get_job_info(args.jobid)
     except RuntimeError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 1
+        if not args.nodes:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        # --nodes was given, so the nodelist is known without scontrol.
+        # Carry on; only the state and user are unknown.
+        print(f"warning: {exc}; using --nodes, job state unknown", file=sys.stderr)
+        job_info = {"nodelist": args.nodes, "user": None, "state": None, "raw": ""}
     if args.user:
         job_info["user"] = args.user
     nodelist = args.nodes if args.nodes else job_info["nodelist"]
