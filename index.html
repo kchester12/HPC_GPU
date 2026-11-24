@@ -67,6 +67,12 @@ footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
    ===================================================================== */
 const pages = [
   {
+    title: "Tracing an MPI or Training Job End to End",
+    file:  "tracing_mpi_job_end_to_end.html",
+    desc:  "Start from the Slurm job ID and map every rank, network peer, open file, and GPU a distributed job touches: the manual method, the jobtrace.py script, and when to adopt Nsight Systems or Darshan instead.",
+    tags:  ["Troubleshooting", "Slurm", "GPU", "Fabric"],
+  },
+  {
     title: "HPC Scheduler Ports and Firewall Reference",
     file:  "hpc_scheduler_ports.html",
     desc:  "Default communication ports for Slurm, LSF, Grid Engine and PBS, plus NFS, AD/SSSD, NTP, monitoring, VNC and BMC services, with common firewall pitfalls and commands to verify your config.",

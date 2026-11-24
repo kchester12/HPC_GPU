@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tracing an MPI or Training Job End to End</title>
+<meta name="description" content="Start from the Slurm job ID and map every process, network peer, open file, and GPU a distributed MPI or training job touches, by hand or with the jobtrace.py script.">
+<style>
+:root{--text:#e8f1ff;--muted:#9db2cc;--cyan:#40d9ff;--green:#43e3a2;--amber:#ffcb66;--accent:#40d9ff;--shadow:0 16px 42px rgba(0,0,0,.28)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:radial-gradient(circle at 20% 0,#123357 0,#07111f 38%,#030914 100%);color:var(--text);font:16px/1.65 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{padding:24px 20px 22px;border-bottom:1px solid #203650;background:rgba(5,15,28,.84)}
+.wrap{max-width:980px;margin:auto}
+.back{display:inline-block;margin-bottom:8px;color:var(--cyan);text-decoration:none;font-size:14px;font-weight:700}.back:hover{text-decoration:underline}
+h1{margin:0;font-size:clamp(26px,4.5vw,40px);letter-spacing:-.03em;line-height:1.2}
+.sub{margin:8px 0 0;color:var(--muted)}
+main{padding:24px 20px 70px}
+nav.toc{margin:0 0 22px;padding:16px 18px;border:1px solid #2a4b6b;border-radius:14px;background:rgba(10,24,41,.85)}
+nav.toc strong{display:block;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);margin-bottom:8px}
+nav.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px}nav.toc li{break-inside:avoid}
+nav.toc a{color:var(--text);text-decoration:none}nav.toc a:hover{color:var(--cyan)}
+section.part{margin:0 0 22px;padding:22px 22px 18px;border:1px solid #203d59;border-radius:18px;background:rgba(10,24,41,.86);box-shadow:var(--shadow);position:relative;overflow:hidden}
+section.part::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--accent)}
+h2{margin:0 0 10px;font-size:23px;line-height:1.3}
+h3{margin:22px 0 8px;font-size:18px;color:#cfe6ff}
+p{margin:8px 0}a{color:var(--cyan)}
+ul,ol{margin:8px 0;padding-left:22px}li{margin:5px 0}
+code{font:14px ui-monospace,SFMono-Regular,Consolas,monospace;background:#0b2036;border:1px solid #1f3e5c;border-radius:6px;padding:1px 5px;color:#bfeaff}
+pre{margin:10px 0;background:#050c16;border:1px solid #1d3851;border-radius:10px;padding:14px;overflow:auto}
+pre code{background:none;border:0;padding:0;font-size:14px;line-height:1.5;white-space:pre}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{border:1px solid #27455f;padding:9px 11px;text-align:left;vertical-align:top}
+th{background:#102943;color:#d6ecff}td{background:#0a1728}
+blockquote{margin:14px 0;padding:12px 16px;border-left:4px solid var(--cyan);background:#0b2236;border-radius:8px}
+blockquote p{margin:4px 0}blockquote strong{color:var(--cyan)}
+ul.task-list{list-style:none;padding-left:0}
+li.task-list-item{padding:10px 12px;margin:8px 0;border:1px solid #23425f;border-radius:11px;background:#0a1728}
+li.task-list-item label{display:inline}
+li.task-list-item input{width:17px;height:17px;margin:0 10px 0 0;vertical-align:-3px;accent-color:var(--green);cursor:pointer}
+li.task-list-item.done{opacity:.6}
+.progress{position:sticky;top:0;z-index:5;margin:0 0 18px;padding:10px 14px;border:1px solid #2a4b6b;border-radius:12px;background:rgba(7,19,33,.95);display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:14px}
+.bar{flex:1 1 180px;height:8px;border-radius:99px;background:#16304a;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--green);transition:width .2s}
+.progress button{border:1px solid #31516f;background:#112842;color:var(--text);padding:5px 11px;border-radius:9px;cursor:pointer;font-weight:700}
+footer{color:var(--muted);text-align:center;font-size:13px;padding:0 20px 40px}
+@media(max-width:760px){nav.toc ol{columns:1}section.part{padding:18px 15px}}
+@media print{body{background:#fff;color:#111}header,nav.toc,section.part,td,th,blockquote,li.task-list-item{background:#fff!important;color:#111!important;box-shadow:none}pre,code{background:#f4f4f4!important;color:#111!important}.back,.progress{display:none}}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+<a class="back" href="./">← All runbooks</a>
+<h1>Tracing an MPI or Training Job End to End</h1>
+<p class="sub">Start from the Slurm job ID and map every process, network peer, open file, and GPU a distributed MPI or training job touches, by hand or with the jobtrace.py script.</p>
+</div></header>
+<main><div class="wrap">
+<nav class="toc"><strong>Contents</strong><ol><li><a href="#overview">Why start from the job ID</a></li><li><a href="#the-manual-method">The manual method</a></li><li><a href="#automating-it-level-1-the-on-demand-script">Automating it: Level 1, the on-demand script</a></li><li><a href="#automating-it-level-2-the-always-on-platform">Automating it: Level 2, the always-on platform</a></li><li><a href="#the-tools-that-already-do-this">The tools that already do this</a></li><li><a href="#the-takeaway">The takeaway</a></li></ol></nav>
+
+<section class="part" id="overview"><h2>Why start from the job ID</h2>
+<p>When a distributed job is slow or stuck, the first question is not "what is wrong" but "what is this job touching." A job that spans ten nodes touches ten sets of processes, a web of network connections, a filesystem, and a set of GPUs. You cannot debug it until you can see all of that at once.</p>
+<p>This is the method I use, the script that automates it, and the honest limits of both.</p>
+</section>
+<section class="part" id="the-manual-method"><h2>The manual method</h2>
+<p>Start from the Slurm job ID. Everything flows from it.</p>
+<ol>
+<li><strong>Get the job.</strong> <code>scontrol show job &lt;id&gt;</code> gives you the nodes, the user, the state, and the start time. <code>sacct -j &lt;id&gt;</code> gives you the accounting: the CPU time, the memory, the exit code.</li>
+<li><strong>Find the processes on each node.</strong> The job's processes are the MPI ranks. The reliable way to find them is to read <code>/proc/&lt;pid&gt;/environ</code> and look for <code>SLURM_JOB_ID=&lt;id&gt;</code>. That works regardless of how the cgroups are laid out, which varies between systems.</li>
+<li><strong>Find the network peers.</strong> <code>ss -tnp</code> on each node, filtered by the rank PIDs, shows every TCP connection the rank has open: the peer IP and port, which is another rank, a storage server, or a metadata server. For InfiniBand, <code>ibstat</code> and <code>ibdiagnet</code> show the fabric links. For NCCL, set <code>NCCL_DEBUG=INFO</code> and read the log: it names the communicator, the ranks, and the transport it chose.</li>
+<li><strong>Find the storage endpoints.</strong> <code>lsof -p &lt;pid&gt;</code> shows every open file descriptor: the files the rank has open, the sockets, and the pipes. The file paths tell you which filesystem the job is reading and writing. If <code>lsof</code> is not installed, <code>ls -l /proc/&lt;pid&gt;/fd</code> gives you the same information in a rawer form.</li>
+<li><strong>Find the GPUs.</strong> <code>nvidia-smi</code> on each node shows which GPU each process is using, the GPU memory, and the utilization. Cross-check the PID from <code>nvidia-smi</code> against the rank PID from <code>ps</code>. If a rank is on the wrong GPU, or two ranks share one GPU, that is the problem.</li>
+<li><strong>Find the syscalls, if it is stuck.</strong> <code>strace -p &lt;pid&gt;</code> shows the system calls in real time. A process stuck in <code>read</code> on a socket is waiting on the network. A process stuck in <code>futex</code> is waiting on a lock. A process making thousands of small <code>read</code> calls is doing small I/O.</li>
+<li><strong>Build the map.</strong> The endpoints are: the other ranks (MPI peers), the storage (the filesystem and the metadata server), the scheduler (Slurm), the network (the fabric), and the GPUs. Write it as a list: rank 0 on node A talks to rank 1 on node B over the fabric, both read from the same filesystem, and both use GPU 0 on their node.</li>
+</ol>
+<p>The tools, in order: <code>scontrol</code> and <code>sacct</code> for the job, <code>ps</code> for the processes, <code>ss</code> for the sockets, <code>lsof</code> for the files, <code>nvidia-smi</code> for the GPUs, <code>ibstat</code> for the fabric, <code>strace</code> for the syscalls, <code>NCCL_DEBUG=INFO</code> for the collectives.</p>
+<p>The trap is starting with <code>strace</code> or <code>tcpdump</code> before you know which node and which PID to look at. The job ID is the entry point. Everything flows from it.</p>
+</section>
+<section class="part" id="automating-it-level-1-the-on-demand-script"><h2>Automating it: Level 1, the on-demand script</h2>
+<p>Doing that by hand takes half an hour of SSH. The script does it in a minute.</p>
+<p><code>jobtrace.py</code> takes a Slurm job ID, gets the nodelist from <code>scontrol</code>, hits every node in parallel over SSH, and prints one map: rank to node to GPU to network peers to open files, plus a summary of the unique endpoints.</p>
+<pre><code>python3 jobtrace.py 12345
+python3 jobtrace.py 12345 --json
+</code></pre>
+<h3>How it works</h3>
+<ol>
+<li><code>scontrol show job &lt;id&gt;</code> gives the NodeList. A small expander turns <code>node[001-004]</code> into <code>node001</code> through <code>node004</code>, including mixed forms like <code>node[001-002,005]</code> and multi-bracket forms like <code>rack[1-2]node[01-02]</code>.</li>
+<li>On each node, in parallel over SSH, a small bash collector runs. It finds the job's PIDs by reading <code>/proc/&lt;pid&gt;/environ</code> for <code>SLURM_JOB_ID=&lt;id&gt;</code>, then collects <code>ps</code>, <code>ss</code>, <code>lsof</code>, and <code>nvidia-smi</code>. The collector reads the environ file with <code>cat</code> rather than a shell redirect, so a permission error on another user's process goes to <code>cat</code>'s stderr (suppressed) instead of being reported by the shell.</li>
+<li>The results come back and are parsed into one report: for each node, each PID with its command line, its GPU, its network peers, and its open files. Then a summary of the unique endpoints: the network peers, the filesystems touched, and the GPUs in use.</li>
+</ol>
+<h3>What it needs</h3>
+<ul>
+<li><code>scontrol</code> on the machine you run it from.</li>
+<li>Passwordless SSH to the compute nodes (or ssh-agent).</li>
+<li>No agent or daemon on the nodes.</li>
+</ul>
+<h3>What it does not do</h3>
+<p>It only sees what is running right now. After the job exits, the processes are gone and <code>ss</code> and <code>lsof</code> show nothing. So it is a diagnostic tool, not a record. If you want the map after the job finished, you need Level 2.</p>
+<p>It is also untested end to end against a real Slurm job. The components are tested (the nodelist expander, the parser, the collector on a live process with <code>SLURM_JOB_ID</code> set), but the full path through <code>scontrol</code> and SSH to compute nodes has not been run on a real cluster yet. Run it against a live job first and check the output against a manual <code>scontrol</code> and <code>ss</code> on one node.</p>
+<p>The script is <a href="scripts/jobtrace.py"><code>jobtrace.py</code></a>, in this repo's <code>scripts/</code> folder.</p>
+</section>
+<section class="part" id="automating-it-level-2-the-always-on-platform"><h2>Automating it: Level 2, the always-on platform</h2>
+<p>If you want the map available after the job finished, you need continuous collection. An agent on each node collects process, network, file, and GPU data, tags everything with the Slurm job ID (from the cgroup), and sends it to a central store. Then you can ask "show me job 12345" at any time.</p>
+<p>The architecture is: an agent on the node, a collector in the middle, a time-series store for the metrics and a log store for the events, and a query service that returns the map for a job ID.</p>
+<p>The hard parts are not the collection. They are:</p>
+<ul>
+<li><strong>Overhead.</strong> Tracing every syscall and every packet is expensive. eBPF helps because it runs in the kernel with low overhead, but you still have to be selective about what you capture.</li>
+<li><strong>Volume.</strong> A thousand-rank MPI job generates a huge amount of trace data. You need sampling or aggregation, not full capture.</li>
+<li><strong>Correlation.</strong> Linking a socket to a rank, a file to a process, and a GPU to a rank means joining data from the kernel, Slurm, and NVML. The job ID is the key, but not every data source has it.</li>
+<li><strong>Timing.</strong> The data has to be collected while the job runs. Continuous collection solves this, but it costs storage and CPU.</li>
+<li><strong>The application is a black box.</strong> MPI and NCCL do not emit traces by themselves. You can infer the endpoints from the kernel sockets, but you cannot tell if a connection is an all-reduce or a broadcast without the application's own logging (<code>NCCL_DEBUG=INFO</code>, or instrumenting with Score-P).</li>
+</ul>
+</section>
+<section class="part" id="the-tools-that-already-do-this"><h2>The tools that already do this</h2>
+<p>Before building Level 2, look at what exists. The question is build versus adopt.</p>
+<ul>
+<li><strong>Darshan</strong> is the HPC I/O tool. It intercepts the MPI-IO and POSIX calls and records exactly which files a job touched, how much it read and wrote, and the access pattern. That is the "which files" part, automated, and it is used at NERSC and ALCF.</li>
+<li><strong>Score-P and Vampir</strong> instrument MPI and OpenMP and produce a trace of the whole job, including the communication pattern. That is the "trace the MPI job" part, but it needs the application instrumented.</li>
+<li><strong>Nsight Systems (<code>nsys</code>)</strong> is the closest to end-to-end tracing for a GPU training job. <code>nsys profile</code> on the job gives you one timeline with the GPU kernels, the NCCL collectives, the MPI calls, and the OS events.</li>
+<li><strong>PyTorch Profiler</strong> does the same thing at the application level for PyTorch jobs: the kernels, the NCCL collectives, and the data loading, on a timeline.</li>
+<li><strong>Pixie</strong> uses eBPF to capture network traffic and process info automatically in Kubernetes, with no code changes. Same idea, different platform.</li>
+<li><strong>OpenTelemetry</strong> is the cloud-native standard for distributed tracing. You instrument the application to emit spans, and a collector aggregates them. It is built for microservices, not MPI, but the concept is the same.</li>
+</ul>
+</section>
+<section class="part" id="the-takeaway"><h2>The takeaway</h2>
+<p>Start with Level 1. It is a weekend project, it uses the tools you already know, and it is immediately useful the next time a job is slow. The full platform is a bigger build, and for the MPI and NCCL tracing part, Nsight Systems and Darshan already exist, so you would be adopting them rather than building from scratch.</p>
+<p>And the method is the same at every level: start from the job ID, get the nodes and the PIDs, then <code>ss</code> for the network, <code>lsof</code> for the files, and <code>nvidia-smi</code> for the GPUs. The automation changes how fast you get the map. It does not change what the map is.</p>
+</section>
+</div></main>
+<footer>Examples are generic. Verify commands and defaults against your vendor and scheduler documentation before production use.</footer>
+
+</body>
+</html>
